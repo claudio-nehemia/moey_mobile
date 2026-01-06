@@ -74,15 +74,15 @@ class NotificationModel {
       case typeRabInternalRequest:
       case typeKontrakRequest:
       case typeGambarKerjaRequest:
+      case typeSurveyUlangRequest: // WAJIB RESPONS
+      case typeWorkplanRequest: // WAJIB RESPONS
         return true;
       
       // These types don't create records, just view/redirect
       case typeDesignApproval:
       case typeInvoiceRequest:
       case typeSurveyScheduleRequest:
-      case typeSurveyUlangRequest:
       case typeApprovalMaterialRequest:
-      case typeWorkplanRequest:
       case typeProjectManagementRequest:
         return false;
       
@@ -128,7 +128,44 @@ class NotificationModel {
         return itemPekerjaan?.kontrak != null;
       
       case typeGambarKerjaRequest:
-        return order!.gambarKerja != null;
+        // Check if gambar kerja has been responded (response_time exists)
+        return order!.gambarKerja?.responseTime != null;
+      
+      case typeSurveyUlangRequest:
+        // Check if survey ulang has been responded (response_time exists)
+        return order!.surveyUlang?.responseTime != null;
+      
+      case typeWorkplanRequest:
+        // Check if any workplan item has been responded (any response_time exists)
+        // Check from both order.itemPekerjaans and order.moodboard.itemPekerjaans
+        
+        // Check from order.moodboard.itemPekerjaans first
+        if (order!.moodboard?.itemPekerjaans != null) {
+          for (var ip in order!.moodboard!.itemPekerjaans!) {
+            if (ip.workplanItems != null) {
+              for (var workplan in ip.workplanItems!) {
+                if (workplan.responseTime != null) {
+                  return true;
+                }
+              }
+            }
+          }
+        }
+        
+        // Fallback to order.itemPekerjaans
+        if (order!.itemPekerjaans != null) {
+          for (var ip in order!.itemPekerjaans!) {
+            if (ip.workplanItems != null) {
+              for (var workplan in ip.workplanItems!) {
+                if (workplan.responseTime != null) {
+                  return true;
+                }
+              }
+            }
+          }
+        }
+        
+        return false;
       
       default:
         return false;
@@ -138,6 +175,116 @@ class NotificationModel {
   /// Get response status text
   String get responseStatusText {
     return isResponded ? 'Responded' : 'Pending Response';
+  }
+
+  /// Get action text based on notification type
+  String get actionText {
+    switch (type) {
+      case typeSurveyRequest:
+        return 'Response Survey Result';
+      case typeSurveyUlangRequest:
+        return 'Response Re-Survey Result';
+      case typeMoodboardRequest:
+        return 'Response Moodboard';
+      case typeEstimasiRequest:
+        return 'Response Estimation';
+      case typeCommitmentFeeRequest:
+        return 'Response Commitment Fee';
+      case typeFinalDesignRequest:
+        return 'Response Final Design';
+      case typeItemPekerjaanRequest:
+        return 'Response Item Pekerjaan';
+      case typeRabInternalRequest:
+        return 'Response RAB Internal';
+      case typeKontrakRequest:
+        return 'Response to Contract';
+      case typeGambarKerjaRequest:
+        return 'Response Gambar Kerja';
+      case typeWorkplanRequest:
+        return 'Create Workplan';
+      default:
+        return 'Respond';
+    }
+  }
+
+  /// Get notification description based on type
+  String get notificationDescription {
+    switch (type) {
+      case typeSurveyRequest:
+        return 'Please complete the initial survey for this project';
+      case typeSurveyUlangRequest:
+        return 'Please complete the re-survey after customer DP payment';
+      case typeMoodboardRequest:
+        return 'Create moodboard design for this project';
+      case typeEstimasiRequest:
+        return 'Create cost estimation for this project';
+      case typeWorkplanRequest:
+        return 'Create work plan schedule for this project';
+      default:
+        return message;
+    }
+  }
+
+  /// Get response info (who and when)
+  Map<String, String?>? get responseInfo {
+    if (!isResponded) return null;
+    
+    switch (type) {
+      case typeSurveyRequest:
+        return {
+          'by': order?.surveyResults != null ? 'Survey Team' : null,
+          'time': null,
+        };
+      
+      case typeSurveyUlangRequest:
+        return {
+          'by': order?.surveyUlang?.responseBy,
+          'time': order?.surveyUlang?.responseTime,
+        };
+      
+      case typeGambarKerjaRequest:
+        return {
+          'by': order?.gambarKerja?.responseBy,
+          'time': order?.gambarKerja?.responseTime,
+        };
+      
+      case typeWorkplanRequest:
+        // Get first responded workplan item from moodboard.itemPekerjaans first
+        if (order?.moodboard?.itemPekerjaans != null) {
+          for (var ip in order!.moodboard!.itemPekerjaans!) {
+            if (ip.workplanItems != null) {
+              for (var workplan in ip.workplanItems!) {
+                if (workplan.responseTime != null) {
+                  return {
+                    'by': workplan.responseBy,
+                    'time': workplan.responseTime,
+                  };
+                }
+              }
+            }
+          }
+        }
+        
+        // Fallback to order.itemPekerjaans
+        if (order?.itemPekerjaans != null) {
+          for (var ip in order!.itemPekerjaans!) {
+            if (ip.workplanItems != null) {
+              for (var workplan in ip.workplanItems!) {
+                if (workplan.responseTime != null) {
+                  return {
+                    'by': workplan.responseBy,
+                    'time': workplan.responseTime,
+                  };
+                }
+              }
+            }
+          }
+        }
+        return null;
+      
+      default:
+        return null;
+    }
   }
 
   // Notification type constants
@@ -169,6 +316,7 @@ class Order {
   final Moodboard? moodboard;
   final List<ItemPekerjaan>? itemPekerjaans;
   final GambarKerja? gambarKerja;
+  final SurveyUlang? surveyUlang;
 
   Order({
     required this.id,
@@ -180,6 +328,7 @@ class Order {
     this.moodboard,
     this.itemPekerjaans,
     this.gambarKerja,
+    this.surveyUlang,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -203,6 +352,9 @@ class Order {
       gambarKerja: json['gambar_kerja'] != null 
           ? GambarKerja.fromJson(json['gambar_kerja']) 
           : null,
+      surveyUlang: json['survey_ulang'] != null 
+          ? SurveyUlang.fromJson(json['survey_ulang']) 
+          : null,
     );
   }
 
@@ -217,6 +369,7 @@ class Order {
       'moodboard': moodboard?.toJson(),
       'item_pekerjaans': itemPekerjaans?.map((item) => item.toJson()).toList(),
       'gambar_kerja': gambarKerja?.toJson(),
+      'survey_ulang': surveyUlang?.toJson(),
     };
   }
 }
@@ -240,6 +393,7 @@ class Moodboard {
   final Estimasi? estimasi;
   final CommitmentFee? commitmentFee;
   final List<dynamic>? finalFiles;
+  final List<ItemPekerjaan>? itemPekerjaans;
 
   Moodboard({
     required this.id,
@@ -247,6 +401,7 @@ class Moodboard {
     this.estimasi,
     this.commitmentFee,
     this.finalFiles,
+    this.itemPekerjaans,
   });
 
   factory Moodboard.fromJson(Map<String, dynamic> json) {
@@ -260,6 +415,11 @@ class Moodboard {
           ? CommitmentFee.fromJson(json['commitment_fee']) 
           : null,
       finalFiles: json['final_files'],
+      itemPekerjaans: json['item_pekerjaans'] != null
+          ? (json['item_pekerjaans'] as List)
+              .map((item) => ItemPekerjaan.fromJson(item))
+              .toList()
+          : null,
     );
   }
 
@@ -270,6 +430,7 @@ class Moodboard {
       'estimasi': estimasi?.toJson(),
       'commitment_fee': commitmentFee?.toJson(),
       'final_files': finalFiles,
+      'item_pekerjaans': itemPekerjaans?.map((item) => item.toJson()).toList(),
     };
   }
 }
@@ -302,14 +463,32 @@ class ItemPekerjaan {
   final int id;
   final RabInternal? rabInternal;
   final Kontrak? kontrak;
+  final List<WorkplanItem>? workplanItems;
 
   ItemPekerjaan({
     required this.id,
     this.rabInternal,
     this.kontrak,
+    this.workplanItems,
   });
 
   factory ItemPekerjaan.fromJson(Map<String, dynamic> json) {
+    List<WorkplanItem>? workplanItems;
+    
+    // Parse nested workplan_items dari produks
+    if (json['produks'] != null) {
+      final produks = json['produks'] as List;
+      workplanItems = [];
+      for (var produk in produks) {
+        if (produk['workplan_items'] != null) {
+          final items = (produk['workplan_items'] as List)
+              .map((item) => WorkplanItem.fromJson(item))
+              .toList();
+          workplanItems.addAll(items);
+        }
+      }
+    }
+    
     return ItemPekerjaan(
       id: json['id'],
       rabInternal: json['rab_internal'] != null 
@@ -318,6 +497,7 @@ class ItemPekerjaan {
       kontrak: json['kontrak'] != null 
           ? Kontrak.fromJson(json['kontrak']) 
           : null,
+      workplanItems: workplanItems,
     );
   }
 
@@ -326,6 +506,7 @@ class ItemPekerjaan {
       'id': id,
       'rab_internal': rabInternal?.toJson(),
       'kontrak': kontrak?.toJson(),
+      'workplan_items': workplanItems?.map((item) => item.toJson()).toList(),
     };
   }
 }
@@ -354,16 +535,82 @@ class Kontrak {
   Map<String, dynamic> toJson() => {'id': id};
 }
 
-class GambarKerja {
+class WorkplanItem {
   final int id;
+  final String? responseTime;
+  final String? responseBy;
 
-  GambarKerja({required this.id});
+  WorkplanItem({
+    required this.id,
+    this.responseTime,
+    this.responseBy,
+  });
 
-  factory GambarKerja.fromJson(Map<String, dynamic> json) {
-    return GambarKerja(id: json['id']);
+  factory WorkplanItem.fromJson(Map<String, dynamic> json) {
+    return WorkplanItem(
+      id: json['id'],
+      responseTime: json['response_time'],
+      responseBy: json['response_by'],
+    );
   }
 
-  Map<String, dynamic> toJson() => {'id': id};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'response_time': responseTime,
+    'response_by': responseBy,
+  };
+}
+
+class GambarKerja {
+  final int id;
+  final String? responseTime;
+  final String? responseBy;
+
+  GambarKerja({
+    required this.id,
+    this.responseTime,
+    this.responseBy,
+  });
+
+  factory GambarKerja.fromJson(Map<String, dynamic> json) {
+    return GambarKerja(
+      id: json['id'],
+      responseTime: json['response_time'],
+      responseBy: json['response_by'],
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'response_time': responseTime,
+    'response_by': responseBy,
+  };
+}
+
+class SurveyUlang {
+  final int id;
+  final String? responseTime;
+  final String? responseBy;
+
+  SurveyUlang({
+    required this.id,
+    this.responseTime,
+    this.responseBy,
+  });
+
+  factory SurveyUlang.fromJson(Map<String, dynamic> json) {
+    return SurveyUlang(
+      id: json['id'],
+      responseTime: json['response_time'],
+      responseBy: json['response_by'],
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'response_time': responseTime,
+    'response_by': responseBy,
+  };
 }
 
 // Extension for null-safe access

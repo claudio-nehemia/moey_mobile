@@ -690,20 +690,33 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     final isResponded = notification.isResponded;
     final requiresAction = notification.requiresActionResponse;
     
+    // Determine card styling based on response status
+    final cardColor = isResponded 
+        ? Colors.green.withOpacity(0.05) 
+        : Colors.white;
+    final borderColor = isResponded 
+        ? Colors.green.withOpacity(0.4)
+        : (notification.isRead ? Colors.grey[200]! : color.withOpacity(0.3));
+    final borderWidth = isResponded 
+        ? 2.0 
+        : (notification.isRead ? 1.0 : 2.0);
+    
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: notification.isRead ? Colors.grey[200]! : color.withOpacity(0.3),
-          width: notification.isRead ? 1 : 2,
+          color: borderColor,
+          width: borderWidth,
         ),
         boxShadow: [
           BoxShadow(
-            color: notification.isRead
-                ? Colors.grey.withOpacity(0.1)
-                : color.withOpacity(0.15),
+            color: isResponded
+                ? Colors.green.withOpacity(0.1)
+                : (notification.isRead
+                    ? Colors.grey.withOpacity(0.1)
+                    : color.withOpacity(0.15)),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -722,28 +735,57 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [color, color.withOpacity(0.7)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: color.withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
+                    Stack(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: isResponded 
+                                  ? [Colors.green, Colors.green.withOpacity(0.7)]
+                                  : [color, color.withOpacity(0.7)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: isResponded 
+                                    ? Colors.green.withOpacity(0.3)
+                                    : color.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: Icon(
-                        icon,
-                        color: Colors.white,
-                        size: 26,
-                      ),
+                          child: Icon(
+                            icon,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
+                        if (isResponded)
+                          Positioned(
+                            top: -2,
+                            right: -2,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.green,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.check,
+                                size: 12,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -849,32 +891,118 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                 if (requiresAction && isResponded) ...[
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: Colors.green.withOpacity(0.3),
                         width: 1,
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.check_circle,
-                          size: 16,
-                          color: Colors.green,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              size: 18,
+                              color: Colors.green,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              notification.responseStatusText,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          notification.responseStatusText,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green,
-                            fontWeight: FontWeight.w600,
+                        // Show response details if available
+                        if (notification.responseInfo != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.grey.withOpacity(0.2),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (notification.responseInfo!['by'] != null) ...[
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.person_outline,
+                                        size: 14,
+                                        color: Constants.textLight,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Response By:',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Constants.textLight,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          notification.responseInfo!['by']!,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Constants.textDark,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                                if (notification.responseInfo!['time'] != null) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.schedule,
+                                        size: 14,
+                                        color: Constants.textLight,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Response Time:',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Constants.textLight,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          _formatResponseTime(notification.responseInfo!['time']!),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Constants.textDark,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -899,9 +1027,9 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                           elevation: 0,
                         ),
                         icon: const Icon(Icons.send_outlined, size: 18),
-                        label: const Text(
-                          'Respond',
-                          style: TextStyle(
+                        label: Text(
+                          notification.actionText,
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -971,6 +1099,15 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
       return '${difference.inMinutes}m ago';
     } else {
       return 'Just now';
+    }
+  }
+
+  String _formatResponseTime(String dateTimeString) {
+    try {
+      final dateTime = DateTime.parse(dateTimeString);
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return dateTimeString;
     }
   }
 }

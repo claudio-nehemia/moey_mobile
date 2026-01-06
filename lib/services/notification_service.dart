@@ -165,11 +165,45 @@ class NotificationResponse {
   });
 
   factory NotificationResponse.fromJson(Map<String, dynamic> json) {
+    final notifications = (json['data'] as List)
+        .map((item) => NotificationModel.fromJson(item))
+        .toList();
+    
+    // 🔥 DEBUG: Log workplan notifications
+    for (var notif in notifications) {
+      if (notif.type == NotificationModel.typeWorkplanRequest) {
+        print('=== MOBILE WORKPLAN DEBUG ===');
+        print('Notification ID: ${notif.id}');
+        print('Order ID: ${notif.order?.id}');
+        print('Has Moodboard: ${notif.order?.moodboard != null}');
+        
+        if (notif.order?.moodboard?.itemPekerjaans != null) {
+          print('Moodboard ItemPekerjaans count: ${notif.order!.moodboard!.itemPekerjaans!.length}');
+          
+          for (var ip in notif.order!.moodboard!.itemPekerjaans!) {
+            print('  ItemPekerjaan ID: ${ip.id}');
+            if (ip.workplanItems != null) {
+              print('  Workplan Items count: ${ip.workplanItems!.length}');
+              if (ip.workplanItems!.isNotEmpty) {
+                final first = ip.workplanItems!.first;
+                print('  First Workplan response_time: ${first.responseTime}');
+                print('  First Workplan response_by: ${first.responseBy}');
+              }
+            }
+          }
+        } else {
+          print('Moodboard ItemPekerjaans: NULL');
+        }
+        
+        print('isResponded: ${notif.isResponded}');
+        print('responseInfo: ${notif.responseInfo}');
+        print('=== END MOBILE DEBUG ===');
+      }
+    }
+    
     return NotificationResponse(
       currentPage: json['current_page'] ?? 1,
-      data: (json['data'] as List)
-          .map((item) => NotificationModel.fromJson(item))
-          .toList(),
+      data: notifications,
       total: json['total'] ?? 0,
       perPage: json['per_page'] ?? 20,
       lastPage: json['last_page'] ?? 1,
