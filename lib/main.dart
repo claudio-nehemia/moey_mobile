@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';  // ← ADD
 import 'screens/login_screen.dart';
 import 'screens/notification_screen.dart';
 import 'services/auth_service.dart';
+import 'services/fcm_service.dart';  // ← ADD
 import 'utils/constant.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // 🔥 Initialize Firebase & FCM
+  await Firebase.initializeApp();
+  await FCMService().initialize();
+  
   runApp(const MyApp());
 }
 
@@ -22,8 +30,17 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Roboto',
       ),
       home: const SplashScreen(),
+      navigatorKey: NavigationService.navigatorKey,
+      routes: {
+        '/notifications': (context) => const NotificationScreen(),
+      },
     );
   }
+}
+
+// 🔥 Global Navigation Service for FCM
+class NavigationService {
+  static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 }
 
 class SplashScreen extends StatefulWidget {
@@ -52,6 +69,9 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (mounted) {
       if (isLoggedIn) {
+        // 🔥 Setup FCM after login (get token & send to backend)
+        await FCMService().setupAfterLogin();
+        
         // Navigate to notifications
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(

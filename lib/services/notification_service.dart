@@ -146,6 +146,49 @@ class NotificationService {
       throw Exception('Network error: ${e.toString()}');
     }
   }
+
+  /// ═══════════════════════════════════════════════════════════════
+  /// 🔥 FCM: UPDATE FCM TOKEN TO BACKEND
+  /// Dipanggil oleh FCMService setelah dapat token dari Firebase
+  /// ═══════════════════════════════════════════════════════════════
+  Future<bool> updateFCMToken(String fcmToken) async {
+    try {
+      final token = await _authService.getToken();
+      
+      if (token == null) {
+        print('⚠️  [NotificationService] No auth token, skipping FCM token update');
+        return false;
+      }
+
+      print('📤 [NotificationService] Sending FCM token to backend...');
+
+      final response = await http.post(
+        Uri.parse('${Constants.baseUrl}/mobile/fcm-token'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'fcm_token': fcmToken,
+          'platform': 'android',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ [NotificationService] FCM token updated successfully');
+        return true;
+      } else {
+        print('❌ [NotificationService] Failed to update FCM token: ${response.statusCode}');
+        print('❌ [NotificationService] Response: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('❌ [NotificationService] Error updating FCM token: $e');
+      return false;
+    }
+  }
+
 }
 
 // Response model for paginated notifications
