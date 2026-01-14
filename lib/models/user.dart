@@ -4,6 +4,7 @@ class User {
   final String email;
   final String? emailVerifiedAt;
   final int? roleId;
+  final bool isProjectManager;
   final String? createdAt;
   final String? updatedAt;
 
@@ -13,6 +14,7 @@ class User {
     required this.email,
     this.emailVerifiedAt,
     this.roleId,
+    this.isProjectManager = false,
     this.createdAt,
     this.updatedAt,
   });
@@ -24,6 +26,7 @@ class User {
       email: json['email'],
       emailVerifiedAt: json['email_verified_at'],
       roleId: json['role_id'],
+      isProjectManager: json['is_project_manager'] ?? false,
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
     );
@@ -36,6 +39,7 @@ class User {
       'email': email,
       'email_verified_at': emailVerifiedAt,
       'role_id': roleId,
+      'is_project_manager': isProjectManager,
       'created_at': createdAt,
       'updated_at': updatedAt,
     };

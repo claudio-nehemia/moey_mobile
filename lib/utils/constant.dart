@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class Constants {
   // Ganti dengan IP komputer Anda jika testing di device fisik
   // Cek IP: ipconfig (Windows) atau ifconfig (Mac/Linux)
-  static const String baseUrl = 'http://192.168.30.146:8000/api'; // API Server
+  static const String baseUrl = 'https://demo.moeygroup.com/api'; // API Server
   // static const String baseUrl = 'http://10.0.2.2:8000/api'; // Android Emulator
   
   // Colors - Interior Design Theme

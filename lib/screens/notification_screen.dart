@@ -25,7 +25,6 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
   bool _isLoading = true;
   String _currentFilter = 'all';
   int _currentPage = 1;
-  bool _hasMore = true;
   Timer? _pollTimer;
   late AnimationController _fabController;
 
@@ -55,10 +54,21 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
   }
 
   Future<void> _loadUserAndNotifications() async {
-    final user = await _authService.getUser();
+    // Get fresh user data from API (not from local storage)
+    final user = await _authService.getCurrentUser();
     setState(() {
       _currentUser = user;
     });
+    
+    // Debug print
+    print('═══════════════════════════════════════');
+    print('🔍 DEBUG USER INFO');
+    print('User Name: ${user?.name}');
+    print('User Email: ${user?.email}');
+    print('User Role ID: ${user?.roleId}');
+    print('Is Project Manager: ${user?.isProjectManager}');
+    print('═══════════════════════════════════════');
+    
     await _loadNotifications();
     await _loadUnreadCount();
   }
@@ -78,7 +88,6 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
 
       setState(() {
         _notifications = response.data;
-        _hasMore = _currentPage < response.lastPage;
         _isLoading = false;
       });
     } catch (e) {
@@ -151,6 +160,100 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
           await _loadUnreadCount();
         } else {
           _showSnackBar(result.message, isError: true);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        _showSnackBar(e.toString(), isError: true);
+      }
+    }
+  }
+
+  Future<void> _handlePmResponse(NotificationModel notification) async {
+    // Confirm PM response
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.supervisor_account, color: Color(0xFF9333EA)),
+            SizedBox(width: 12),
+            Text('PM Response'),
+          ],
+        ),
+        content: Text(
+          'Confirm that you have reviewed and approved this ${notification.title}?',
+          style: const TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF9333EA),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Card(
+          margin: const EdgeInsets.all(50),
+          child: Padding(
+            padding: const EdgeInsets.all(30),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SpinKitThreeBounce(
+                  color: const Color(0xFF9333EA),
+                  size: 30,
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Recording PM response...',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final result = await _notificationService.handlePmResponse(notification.id);
+      
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        
+        if (result['success'] == true) {
+          // Show success message
+          _showSnackBar(result['message'] ?? 'PM Response recorded successfully', isError: false);
+          
+          // Reload notifications
+          await _loadNotifications();
+          await _loadUnreadCount();
+        } else {
+          _showSnackBar(result['message'] ?? 'Failed to record PM response', isError: true);
         }
       }
     } catch (e) {
@@ -1003,6 +1106,111 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                             ),
                           ),
                         ],
+                        // PM Response Info Badge - Show separately from regular response
+                        if (notification.pmResponseInfo != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF5F3FF), // Light purple background
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFFE9D5FF), // Purple border
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF9333EA), // Purple
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        '✓ PM Response',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (notification.pmResponseInfo!['by'] != null) ...[
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.person_outline,
+                                        size: 14,
+                                        color: Color(0xFF7C3AED), // Purple
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Text(
+                                        'By:',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF7C3AED), // Purple
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          notification.pmResponseInfo!['by']!,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF6B21A8), // Dark purple
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                                if (notification.pmResponseInfo!['time'] != null) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.schedule,
+                                        size: 14,
+                                        color: Color(0xFF7C3AED), // Purple
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Text(
+                                        'Time:',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF7C3AED), // Purple
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          _formatResponseTime(notification.pmResponseInfo!['time']!),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF6B21A8), // Dark purple
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -1035,6 +1243,52 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                           ),
                         ),
                       ),
+                    ),
+                  ],
+                  // PM Response Button (only show if PM, requires action, and hasn't PM responded yet)
+                  if (_currentUser != null && 
+                      _currentUser!.isProjectManager &&
+                      requiresAction &&
+                      notification.pmResponseInfo == null) ...[
+                    Builder(
+                      builder: (context) {
+                        // Debug print
+                        print('🔵 PM Response Button Condition Check:');
+                        print('   _currentUser != null: ${_currentUser != null}');
+                        print('   isProjectManager: ${_currentUser?.isProjectManager}');
+                        print('   pmResponseInfo == null: ${notification.pmResponseInfo == null}');
+                        print('   Notification ID: ${notification.id}');
+                        print('   Notification Type: ${notification.type}');
+                        
+                        return Column(
+                          children: [
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () => _handlePmResponse(notification),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF9333EA), // Purple
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                icon: const Icon(Icons.supervisor_account, size: 18),
+                                label: const Text(
+                                  'PM Response',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
                     ),
                   ],
                 ] else ...[

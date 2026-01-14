@@ -147,6 +147,35 @@ class NotificationService {
     }
   }
 
+  // Handle PM Response
+  Future<Map<String, dynamic>> handlePmResponse(int notificationId) async {
+    try {
+      final token = await _authService.getToken();
+      
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
+
+      final response = await http.post(
+        Uri.parse('${Constants.baseUrl}/mobile/notifications/$notificationId/pm-response'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 403 || response.statusCode == 404) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        throw Exception('Failed to handle PM response');
+      }
+    } catch (e) {
+      throw Exception('Network error: ${e.toString()}');
+    }
+  }
+
   /// ═══════════════════════════════════════════════════════════════
   /// 🔥 FCM: UPDATE FCM TOKEN TO BACKEND
   /// Dipanggil oleh FCMService setelah dapat token dari Firebase

@@ -287,6 +287,89 @@ class NotificationModel {
     }
   }
 
+  /// Get PM response info (who and when) - PM Response is separate from regular response
+  Map<String, String?>? get pmResponseInfo {
+    switch (type) {
+      case typeSurveyRequest:
+        if (order?.surveyResults?.pmResponseTime != null) {
+          return {
+            'by': order?.surveyResults?.pmResponseBy,
+            'time': order?.surveyResults?.pmResponseTime,
+          };
+        }
+        return null;
+      
+      case typeMoodboardRequest:
+      case typeEstimasiRequest:
+      case typeCommitmentFeeRequest:
+      case typeFinalDesignRequest:
+      case typeItemPekerjaanRequest:
+        // Check if moodboard has PM response
+        if (order?.moodboard?.pmResponseTime != null) {
+          return {
+            'by': order?.moodboard?.pmResponseBy,
+            'time': order?.moodboard?.pmResponseTime,
+          };
+        }
+        return null;
+      
+      case typeSurveyUlangRequest:
+        if (order?.surveyUlang?.pmResponseTime != null) {
+          return {
+            'by': order?.surveyUlang?.pmResponseBy,
+            'time': order?.surveyUlang?.pmResponseTime,
+          };
+        }
+        return null;
+      
+      case typeGambarKerjaRequest:
+        if (order?.gambarKerja?.pmResponseTime != null) {
+          return {
+            'by': order?.gambarKerja?.pmResponseBy,
+            'time': order?.gambarKerja?.pmResponseTime,
+          };
+        }
+        return null;
+      
+      case typeWorkplanRequest:
+        // Get first PM responded workplan item
+        if (order?.moodboard?.itemPekerjaans != null) {
+          for (var ip in order!.moodboard!.itemPekerjaans!) {
+            if (ip.workplanItems != null) {
+              for (var workplan in ip.workplanItems!) {
+                if (workplan.pmResponseTime != null) {
+                  return {
+                    'by': workplan.pmResponseBy,
+                    'time': workplan.pmResponseTime,
+                  };
+                }
+              }
+            }
+          }
+        }
+        
+        // Fallback to order.itemPekerjaans
+        if (order?.itemPekerjaans != null) {
+          for (var ip in order!.itemPekerjaans!) {
+            if (ip.workplanItems != null) {
+              for (var workplan in ip.workplanItems!) {
+                if (workplan.pmResponseTime != null) {
+                  return {
+                    'by': workplan.pmResponseBy,
+                    'time': workplan.pmResponseTime,
+                  };
+                }
+              }
+            }
+          }
+        }
+        return null;
+      
+      default:
+        return null;
+    }
+  }
+
   // Notification type constants
   static const String typeSurveyRequest = 'survey_request';
   static const String typeMoodboardRequest = 'moodboard_request';
@@ -377,14 +460,28 @@ class Order {
 // Related models for checking response status
 class SurveyResults {
   final int id;
+  final String? pmResponseTime;
+  final String? pmResponseBy;
 
-  SurveyResults({required this.id});
+  SurveyResults({
+    required this.id,
+    this.pmResponseTime,
+    this.pmResponseBy,
+  });
 
   factory SurveyResults.fromJson(Map<String, dynamic> json) {
-    return SurveyResults(id: json['id']);
+    return SurveyResults(
+      id: json['id'],
+      pmResponseTime: json['pm_response_time'],
+      pmResponseBy: json['pm_response_by'],
+    );
   }
 
-  Map<String, dynamic> toJson() => {'id': id};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'pm_response_time': pmResponseTime,
+    'pm_response_by': pmResponseBy,
+  };
 }
 
 class Moodboard {
@@ -394,6 +491,8 @@ class Moodboard {
   final CommitmentFee? commitmentFee;
   final List<dynamic>? finalFiles;
   final List<ItemPekerjaan>? itemPekerjaans;
+  final String? pmResponseTime;
+  final String? pmResponseBy;
 
   Moodboard({
     required this.id,
@@ -402,6 +501,8 @@ class Moodboard {
     this.commitmentFee,
     this.finalFiles,
     this.itemPekerjaans,
+    this.pmResponseTime,
+    this.pmResponseBy,
   });
 
   factory Moodboard.fromJson(Map<String, dynamic> json) {
@@ -420,6 +521,8 @@ class Moodboard {
               .map((item) => ItemPekerjaan.fromJson(item))
               .toList()
           : null,
+      pmResponseTime: json['pm_response_time'],
+      pmResponseBy: json['pm_response_by'],
     );
   }
 
@@ -431,6 +534,8 @@ class Moodboard {
       'commitment_fee': commitmentFee?.toJson(),
       'final_files': finalFiles,
       'item_pekerjaans': itemPekerjaans?.map((item) => item.toJson()).toList(),
+      'pm_response_time': pmResponseTime,
+      'pm_response_by': pmResponseBy,
     };
   }
 }
@@ -539,11 +644,15 @@ class WorkplanItem {
   final int id;
   final String? responseTime;
   final String? responseBy;
+  final String? pmResponseTime;
+  final String? pmResponseBy;
 
   WorkplanItem({
     required this.id,
     this.responseTime,
     this.responseBy,
+    this.pmResponseTime,
+    this.pmResponseBy,
   });
 
   factory WorkplanItem.fromJson(Map<String, dynamic> json) {
@@ -551,6 +660,8 @@ class WorkplanItem {
       id: json['id'],
       responseTime: json['response_time'],
       responseBy: json['response_by'],
+      pmResponseTime: json['pm_response_time'],
+      pmResponseBy: json['pm_response_by'],
     );
   }
 
@@ -558,6 +669,8 @@ class WorkplanItem {
     'id': id,
     'response_time': responseTime,
     'response_by': responseBy,
+    'pm_response_time': pmResponseTime,
+    'pm_response_by': pmResponseBy,
   };
 }
 
@@ -565,11 +678,15 @@ class GambarKerja {
   final int id;
   final String? responseTime;
   final String? responseBy;
+  final String? pmResponseTime;
+  final String? pmResponseBy;
 
   GambarKerja({
     required this.id,
     this.responseTime,
     this.responseBy,
+    this.pmResponseTime,
+    this.pmResponseBy,
   });
 
   factory GambarKerja.fromJson(Map<String, dynamic> json) {
@@ -577,6 +694,8 @@ class GambarKerja {
       id: json['id'],
       responseTime: json['response_time'],
       responseBy: json['response_by'],
+      pmResponseTime: json['pm_response_time'],
+      pmResponseBy: json['pm_response_by'],
     );
   }
 
@@ -584,6 +703,8 @@ class GambarKerja {
     'id': id,
     'response_time': responseTime,
     'response_by': responseBy,
+    'pm_response_time': pmResponseTime,
+    'pm_response_by': pmResponseBy,
   };
 }
 
@@ -591,11 +712,15 @@ class SurveyUlang {
   final int id;
   final String? responseTime;
   final String? responseBy;
+  final String? pmResponseTime;
+  final String? pmResponseBy;
 
   SurveyUlang({
     required this.id,
     this.responseTime,
     this.responseBy,
+    this.pmResponseTime,
+    this.pmResponseBy,
   });
 
   factory SurveyUlang.fromJson(Map<String, dynamic> json) {
@@ -603,6 +728,8 @@ class SurveyUlang {
       id: json['id'],
       responseTime: json['response_time'],
       responseBy: json['response_by'],
+      pmResponseTime: json['pm_response_time'],
+      pmResponseBy: json['pm_response_by'],
     );
   }
 
@@ -610,6 +737,8 @@ class SurveyUlang {
     'id': id,
     'response_time': responseTime,
     'response_by': responseBy,
+    'pm_response_time': pmResponseTime,
+    'pm_response_by': pmResponseBy,
   };
 }
 
