@@ -35,7 +35,9 @@ class NotificationModel {
       type: json['type'],
       title: json['title'],
       message: json['message'],
-      data: json['data'] != null ? Map<String, dynamic>.from(json['data']) : null,
+      data: json['data'] != null
+          ? Map<String, dynamic>.from(json['data'])
+          : null,
       isRead: json['is_read'] ?? false,
       readAt: json['read_at'],
       createdAt: json['created_at'],
@@ -74,18 +76,18 @@ class NotificationModel {
       case typeRabInternalRequest:
       case typeKontrakRequest:
       case typeGambarKerjaRequest:
+      case typeSurveyScheduleRequest:
       case typeSurveyUlangRequest: // WAJIB RESPONS
       case typeWorkplanRequest: // WAJIB RESPONS
         return true;
-      
+
       // These types don't create records, just view/redirect
       case typeDesignApproval:
       case typeInvoiceRequest:
-      case typeSurveyScheduleRequest:
       case typeApprovalMaterialRequest:
       case typeProjectManagementRequest:
         return false;
-      
+
       default:
         return false;
     }
@@ -102,43 +104,47 @@ class NotificationModel {
     switch (type) {
       case typeSurveyRequest:
         return order!.surveyResults != null;
-      
+
       case typeMoodboardRequest:
         return order!.moodboard != null;
-      
+
       case typeEstimasiRequest:
         return order!.moodboard?.estimasi != null;
-      
+
       case typeCommitmentFeeRequest:
         return order!.moodboard?.commitmentFee != null;
-      
+
       case typeFinalDesignRequest:
-        return order!.moodboard?.moodboardFinal != null || 
-               (order!.moodboard?.finalFiles?.isNotEmpty ?? false);
-      
+        return order!.moodboard?.moodboardFinal != null ||
+            (order!.moodboard?.finalFiles?.isNotEmpty ?? false);
+
       case typeItemPekerjaanRequest:
         return order!.itemPekerjaans?.isNotEmpty ?? false;
-      
+
       case typeRabInternalRequest:
         final itemPekerjaan = order!.itemPekerjaans?.firstOrNull;
         return itemPekerjaan?.rabInternal != null;
-      
+
       case typeKontrakRequest:
         final itemPekerjaan = order!.itemPekerjaans?.firstOrNull;
         return itemPekerjaan?.kontrak != null;
-      
+
+      case typeSurveyScheduleRequest:
+        // Check if survey schedule has been responded (survey_response_time exists)
+        return order!.surveyResponseTime != null;
+
       case typeGambarKerjaRequest:
         // Check if gambar kerja has been responded (response_time exists)
         return order!.gambarKerja?.responseTime != null;
-      
+
       case typeSurveyUlangRequest:
         // Check if survey ulang has been responded (response_time exists)
         return order!.surveyUlang?.responseTime != null;
-      
+
       case typeWorkplanRequest:
         // Check if any workplan item has been responded (any response_time exists)
         // Check from both order.itemPekerjaans and order.moodboard.itemPekerjaans
-        
+
         // Check from order.moodboard.itemPekerjaans first
         if (order!.moodboard?.itemPekerjaans != null) {
           for (var ip in order!.moodboard!.itemPekerjaans!) {
@@ -151,7 +157,7 @@ class NotificationModel {
             }
           }
         }
-        
+
         // Fallback to order.itemPekerjaans
         if (order!.itemPekerjaans != null) {
           for (var ip in order!.itemPekerjaans!) {
@@ -164,9 +170,9 @@ class NotificationModel {
             }
           }
         }
-        
+
         return false;
-      
+
       default:
         return false;
     }
@@ -184,6 +190,8 @@ class NotificationModel {
         return 'Response Survey Result';
       case typeSurveyUlangRequest:
         return 'Response Re-Survey Result';
+      case typeSurveyScheduleRequest:
+        return 'Response Survey Schedule';
       case typeMoodboardRequest:
         return 'Response Moodboard';
       case typeEstimasiRequest:
@@ -228,26 +236,32 @@ class NotificationModel {
   /// Get response info (who and when)
   Map<String, String?>? get responseInfo {
     if (!isResponded) return null;
-    
+
     switch (type) {
       case typeSurveyRequest:
         return {
           'by': order?.surveyResults != null ? 'Survey Team' : null,
           'time': null,
         };
-      
+
       case typeSurveyUlangRequest:
         return {
           'by': order?.surveyUlang?.responseBy,
           'time': order?.surveyUlang?.responseTime,
         };
-      
+
       case typeGambarKerjaRequest:
         return {
           'by': order?.gambarKerja?.responseBy,
           'time': order?.gambarKerja?.responseTime,
         };
-      
+
+      case typeSurveyScheduleRequest:
+        return {
+          'by': order?.surveyResponseBy,
+          'time': order?.surveyResponseTime,
+        };
+
       case typeWorkplanRequest:
         // Get first responded workplan item from moodboard.itemPekerjaans first
         if (order?.moodboard?.itemPekerjaans != null) {
@@ -264,7 +278,7 @@ class NotificationModel {
             }
           }
         }
-        
+
         // Fallback to order.itemPekerjaans
         if (order?.itemPekerjaans != null) {
           for (var ip in order!.itemPekerjaans!) {
@@ -281,7 +295,7 @@ class NotificationModel {
           }
         }
         return null;
-      
+
       default:
         return null;
     }
@@ -298,7 +312,7 @@ class NotificationModel {
           };
         }
         return null;
-      
+
       case typeMoodboardRequest:
       case typeEstimasiRequest:
       case typeCommitmentFeeRequest:
@@ -312,7 +326,7 @@ class NotificationModel {
           };
         }
         return null;
-      
+
       case typeSurveyUlangRequest:
         if (order?.surveyUlang?.pmResponseTime != null) {
           return {
@@ -321,7 +335,16 @@ class NotificationModel {
           };
         }
         return null;
-      
+
+      case typeSurveyScheduleRequest:
+        if (order?.pmSurveyResponseTime != null) {
+          return {
+            'by': order?.pmSurveyResponseBy,
+            'time': order?.pmSurveyResponseTime,
+          };
+        }
+        return null;
+
       case typeGambarKerjaRequest:
         if (order?.gambarKerja?.pmResponseTime != null) {
           return {
@@ -330,7 +353,7 @@ class NotificationModel {
           };
         }
         return null;
-      
+
       case typeWorkplanRequest:
         // Get first PM responded workplan item
         if (order?.moodboard?.itemPekerjaans != null) {
@@ -347,7 +370,7 @@ class NotificationModel {
             }
           }
         }
-        
+
         // Fallback to order.itemPekerjaans
         if (order?.itemPekerjaans != null) {
           for (var ip in order!.itemPekerjaans!) {
@@ -364,7 +387,7 @@ class NotificationModel {
           }
         }
         return null;
-      
+
       default:
         return null;
     }
@@ -386,7 +409,8 @@ class NotificationModel {
   static const String typeGambarKerjaRequest = 'gambar_kerja_request';
   static const String typeApprovalMaterialRequest = 'approval_material_request';
   static const String typeWorkplanRequest = 'workplan_request';
-  static const String typeProjectManagementRequest = 'project_management_request';
+  static const String typeProjectManagementRequest =
+      'project_management_request';
 }
 
 class Order {
@@ -394,6 +418,12 @@ class Order {
   final String namaProject;
   final String? customerName;
   final String? tahapanProyek;
+
+  final String? surveyResponseTime;
+  final String? surveyResponseBy;
+  final String? pmSurveyResponseTime;
+  final String? pmSurveyResponseBy;
+
   final String? projectStatus;
   final SurveyResults? surveyResults;
   final Moodboard? moodboard;
@@ -407,6 +437,12 @@ class Order {
     this.customerName,
     this.tahapanProyek,
     this.projectStatus,
+
+    this.surveyResponseTime,
+    this.surveyResponseBy,
+    this.pmSurveyResponseTime,
+    this.pmSurveyResponseBy,
+
     this.surveyResults,
     this.moodboard,
     this.itemPekerjaans,
@@ -421,22 +457,26 @@ class Order {
       customerName: json['customer_name'],
       tahapanProyek: json['tahapan_proyek'],
       projectStatus: json['project_status'],
-      surveyResults: json['survey_results'] != null 
-          ? SurveyResults.fromJson(json['survey_results']) 
+      surveyResponseTime: json['survey_response_time'],
+      surveyResponseBy: json['survey_response_by'],
+      pmSurveyResponseTime: json['pm_survey_response_time'],
+      pmSurveyResponseBy: json['pm_survey_response_by'],
+      surveyResults: json['survey_results'] != null
+          ? SurveyResults.fromJson(json['survey_results'])
           : null,
-      moodboard: json['moodboard'] != null 
-          ? Moodboard.fromJson(json['moodboard']) 
+      moodboard: json['moodboard'] != null
+          ? Moodboard.fromJson(json['moodboard'])
           : null,
       itemPekerjaans: json['item_pekerjaans'] != null
           ? (json['item_pekerjaans'] as List)
-              .map((item) => ItemPekerjaan.fromJson(item))
-              .toList()
+                .map((item) => ItemPekerjaan.fromJson(item))
+                .toList()
           : null,
-      gambarKerja: json['gambar_kerja'] != null 
-          ? GambarKerja.fromJson(json['gambar_kerja']) 
+      gambarKerja: json['gambar_kerja'] != null
+          ? GambarKerja.fromJson(json['gambar_kerja'])
           : null,
-      surveyUlang: json['survey_ulang'] != null 
-          ? SurveyUlang.fromJson(json['survey_ulang']) 
+      surveyUlang: json['survey_ulang'] != null
+          ? SurveyUlang.fromJson(json['survey_ulang'])
           : null,
     );
   }
@@ -448,6 +488,10 @@ class Order {
       'customer_name': customerName,
       'tahapan_proyek': tahapanProyek,
       'project_status': projectStatus,
+      'survey_response_time': surveyResponseTime,
+      'survey_response_by': surveyResponseBy,
+      'pm_survey_response_time': pmSurveyResponseTime,
+      'pm_survey_response_by': pmSurveyResponseBy,
       'survey_results': surveyResults?.toJson(),
       'moodboard': moodboard?.toJson(),
       'item_pekerjaans': itemPekerjaans?.map((item) => item.toJson()).toList(),
@@ -463,11 +507,7 @@ class SurveyResults {
   final String? pmResponseTime;
   final String? pmResponseBy;
 
-  SurveyResults({
-    required this.id,
-    this.pmResponseTime,
-    this.pmResponseBy,
-  });
+  SurveyResults({required this.id, this.pmResponseTime, this.pmResponseBy});
 
   factory SurveyResults.fromJson(Map<String, dynamic> json) {
     return SurveyResults(
@@ -509,17 +549,17 @@ class Moodboard {
     return Moodboard(
       id: json['id'],
       moodboardFinal: json['moodboard_final'],
-      estimasi: json['estimasi'] != null 
-          ? Estimasi.fromJson(json['estimasi']) 
+      estimasi: json['estimasi'] != null
+          ? Estimasi.fromJson(json['estimasi'])
           : null,
-      commitmentFee: json['commitment_fee'] != null 
-          ? CommitmentFee.fromJson(json['commitment_fee']) 
+      commitmentFee: json['commitment_fee'] != null
+          ? CommitmentFee.fromJson(json['commitment_fee'])
           : null,
       finalFiles: json['final_files'],
       itemPekerjaans: json['item_pekerjaans'] != null
           ? (json['item_pekerjaans'] as List)
-              .map((item) => ItemPekerjaan.fromJson(item))
-              .toList()
+                .map((item) => ItemPekerjaan.fromJson(item))
+                .toList()
           : null,
       pmResponseTime: json['pm_response_time'],
       pmResponseBy: json['pm_response_by'],
@@ -579,7 +619,7 @@ class ItemPekerjaan {
 
   factory ItemPekerjaan.fromJson(Map<String, dynamic> json) {
     List<WorkplanItem>? workplanItems;
-    
+
     // Parse nested workplan_items dari produks
     if (json['produks'] != null) {
       final produks = json['produks'] as List;
@@ -593,14 +633,14 @@ class ItemPekerjaan {
         }
       }
     }
-    
+
     return ItemPekerjaan(
       id: json['id'],
-      rabInternal: json['rab_internal'] != null 
-          ? RabInternal.fromJson(json['rab_internal']) 
+      rabInternal: json['rab_internal'] != null
+          ? RabInternal.fromJson(json['rab_internal'])
           : null,
-      kontrak: json['kontrak'] != null 
-          ? Kontrak.fromJson(json['kontrak']) 
+      kontrak: json['kontrak'] != null
+          ? Kontrak.fromJson(json['kontrak'])
           : null,
       workplanItems: workplanItems,
     );

@@ -15,10 +15,11 @@ class NotificationScreen extends StatefulWidget {
   State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
-class _NotificationScreenState extends State<NotificationScreen> with SingleTickerProviderStateMixin {
+class _NotificationScreenState extends State<NotificationScreen>
+    with SingleTickerProviderStateMixin {
   final NotificationService _notificationService = NotificationService();
   final AuthService _authService = AuthService();
-  
+
   List<NotificationModel> _notifications = [];
   User? _currentUser;
   int _unreadCount = 0;
@@ -59,16 +60,16 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     setState(() {
       _currentUser = user;
     });
-    
+
     // Debug print
     print('═══════════════════════════════════════');
     print('🔍 DEBUG USER INFO');
     print('User Name: ${user?.name}');
     print('User Email: ${user?.email}');
     print('User Role ID: ${user?.roleId}');
-    print('Is Project Manager: ${user?.isProjectManager}');
+    print('Is Kepala Marketing: ${user?.isKepalaMarketing}');
     print('═══════════════════════════════════════');
-    
+
     await _loadNotifications();
     await _loadUnreadCount();
   }
@@ -94,7 +95,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
       setState(() {
         _isLoading = false;
       });
-      
+
       if (mounted) {
         _showSnackBar(e.toString(), isError: true);
       }
@@ -112,7 +113,9 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     }
   }
 
-  Future<void> _handleNotificationResponse(NotificationModel notification) async {
+  Future<void> _handleNotificationResponse(
+    NotificationModel notification,
+  ) async {
     // Show loading dialog
     showDialog(
       context: context,
@@ -125,10 +128,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SpinKitThreeBounce(
-                  color: Constants.primaryColor,
-                  size: 30,
-                ),
+                SpinKitThreeBounce(color: Constants.primaryColor, size: 30),
                 const SizedBox(height: 20),
                 const Text(
                   'Processing response...',
@@ -143,10 +143,10 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
 
     try {
       final result = await _notificationService.handleResponse(notification.id);
-      
+
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
-        
+
         if (result.success) {
           // Show success dialog
           _showResponseDialog(
@@ -154,7 +154,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
             result.action ?? 'view',
             notification,
           );
-          
+
           // Reload notifications
           await _loadNotifications();
           await _loadUnreadCount();
@@ -175,14 +175,12 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
             Icon(Icons.supervisor_account, color: Color(0xFF9333EA)),
             SizedBox(width: 12),
-            Text('PM Response'),
+            Text('Marketing Response'),
           ],
         ),
         content: Text(
@@ -223,13 +221,10 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SpinKitThreeBounce(
-                  color: const Color(0xFF9333EA),
-                  size: 30,
-                ),
+                SpinKitThreeBounce(color: const Color(0xFF9333EA), size: 30),
                 const SizedBox(height: 20),
                 const Text(
-                  'Recording PM response...',
+                  'Recording Marketing response...',
                   style: TextStyle(fontSize: 16),
                 ),
               ],
@@ -240,20 +235,28 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     );
 
     try {
-      final result = await _notificationService.handlePmResponse(notification.id);
-      
+      final result = await _notificationService.handlePmResponse(
+        notification.id,
+      );
+
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
-        
+
         if (result['success'] == true) {
           // Show success message
-          _showSnackBar(result['message'] ?? 'PM Response recorded successfully', isError: false);
-          
+          _showSnackBar(
+            result['message'] ?? 'Marketing Response recorded successfully',
+            isError: false,
+          );
+
           // Reload notifications
           await _loadNotifications();
           await _loadUnreadCount();
         } else {
-          _showSnackBar(result['message'] ?? 'Failed to record PM response', isError: true);
+          _showSnackBar(
+            result['message'] ?? 'Failed to record Marketing response',
+            isError: true,
+          );
         }
       }
     } catch (e) {
@@ -264,13 +267,15 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     }
   }
 
-  void _showResponseDialog(String message, String action, NotificationModel notification) {
+  void _showResponseDialog(
+    String message,
+    String action,
+    NotificationModel notification,
+  ) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -291,19 +296,13 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
               const SizedBox(height: 20),
               const Text(
                 'Response Recorded',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Constants.textLight,
-                ),
+                style: TextStyle(fontSize: 14, color: Constants.textLight),
               ),
               const SizedBox(height: 24),
               Row(
@@ -352,7 +351,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     if (notification.isRead) return;
 
     final success = await _notificationService.markAsRead(notification.id);
-    
+
     if (success) {
       setState(() {
         final index = _notifications.indexWhere((n) => n.id == notification.id);
@@ -379,7 +378,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
 
   Future<void> _markAllAsRead() async {
     final success = await _notificationService.markAllAsRead();
-    
+
     if (success && mounted) {
       _showSnackBar('All notifications marked as read', isError: false);
       await _loadNotifications();
@@ -391,9 +390,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
         actions: [
@@ -420,9 +417,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
       await _authService.logout();
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const LoginScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
         );
       }
     }
@@ -446,16 +441,12 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
               color: Colors.white,
             ),
             const SizedBox(width: 12),
-            Expanded(
-              child: Text(message),
-            ),
+            Expanded(child: Text(message)),
           ],
         ),
         backgroundColor: isError ? Colors.red : Colors.green,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
       ),
     );
@@ -465,6 +456,8 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     switch (type) {
       case NotificationModel.typeSurveyRequest:
       case NotificationModel.typeSurveyUlangRequest:
+        return Colors.blue;
+      case NotificationModel.typeSurveyScheduleRequest: // TAMBAH INI
         return Colors.blue;
       case NotificationModel.typeMoodboardRequest:
       case NotificationModel.typeDesignApproval:
@@ -488,6 +481,8 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
       case NotificationModel.typeSurveyRequest:
       case NotificationModel.typeSurveyUlangRequest:
         return Icons.assignment_outlined;
+      case NotificationModel.typeSurveyScheduleRequest: // TAMBAH INI
+        return Icons.event_available_outlined;
       case NotificationModel.typeMoodboardRequest:
       case NotificationModel.typeDesignApproval:
       case NotificationModel.typeFinalDesignRequest:
@@ -535,10 +530,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
       foregroundColor: Colors.white,
       title: const Text(
         'Notifications',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 20,
-        ),
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
       ),
       actions: [
         if (_unreadCount > 0)
@@ -646,10 +638,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                 const SizedBox(height: 4),
                 Text(
                   _currentUser!.email,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.white70),
                 ),
               ],
             ),
@@ -677,7 +666,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
 
   Widget _buildFilterChip(String label, String value, IconData icon) {
     final isSelected = _currentFilter == value;
-    
+
     return Expanded(
       child: GestureDetector(
         onTap: () => _changeFilter(value),
@@ -729,10 +718,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
   Widget _buildNotificationsList() {
     if (_isLoading) {
       return Center(
-        child: SpinKitThreeBounce(
-          color: Constants.primaryColor,
-          size: 40,
-        ),
+        child: SpinKitThreeBounce(color: Constants.primaryColor, size: 40),
       );
     }
 
@@ -792,34 +778,29 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     final timeAgo = _formatTimeAgo(createdAt);
     final isResponded = notification.isResponded;
     final requiresAction = notification.requiresActionResponse;
-    
+
     // Determine card styling based on response status
-    final cardColor = isResponded 
-        ? Colors.green.withOpacity(0.05) 
+    final cardColor = isResponded
+        ? Colors.green.withOpacity(0.05)
         : Colors.white;
-    final borderColor = isResponded 
+    final borderColor = isResponded
         ? Colors.green.withOpacity(0.4)
         : (notification.isRead ? Colors.grey[200]! : color.withOpacity(0.3));
-    final borderWidth = isResponded 
-        ? 2.0 
-        : (notification.isRead ? 1.0 : 2.0);
-    
+    final borderWidth = isResponded ? 2.0 : (notification.isRead ? 1.0 : 2.0);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: borderColor,
-          width: borderWidth,
-        ),
+        border: Border.all(color: borderColor, width: borderWidth),
         boxShadow: [
           BoxShadow(
             color: isResponded
                 ? Colors.green.withOpacity(0.1)
                 : (notification.isRead
-                    ? Colors.grey.withOpacity(0.1)
-                    : color.withOpacity(0.15)),
+                      ? Colors.grey.withOpacity(0.1)
+                      : color.withOpacity(0.15)),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -844,8 +825,11 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: isResponded 
-                                  ? [Colors.green, Colors.green.withOpacity(0.7)]
+                              colors: isResponded
+                                  ? [
+                                      Colors.green,
+                                      Colors.green.withOpacity(0.7),
+                                    ]
                                   : [color, color.withOpacity(0.7)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
@@ -853,7 +837,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                             borderRadius: BorderRadius.circular(14),
                             boxShadow: [
                               BoxShadow(
-                                color: isResponded 
+                                color: isResponded
                                     ? Colors.green.withOpacity(0.3)
                                     : color.withOpacity(0.3),
                                 blurRadius: 8,
@@ -861,11 +845,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                               ),
                             ],
                           ),
-                          child: Icon(
-                            icon,
-                            color: Colors.white,
-                            size: 26,
-                          ),
+                          child: Icon(icon, color: Colors.white, size: 26),
                         ),
                         if (isResponded)
                           Positioned(
@@ -989,7 +969,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                     ),
                   ],
                 ),
-                
+
                 // Response Status Badge (only for action-required notifications)
                 if (requiresAction && isResponded) ...[
                   const SizedBox(height: 12),
@@ -1039,7 +1019,8 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (notification.responseInfo!['by'] != null) ...[
+                                if (notification.responseInfo!['by'] !=
+                                    null) ...[
                                   Row(
                                     children: [
                                       Icon(
@@ -1070,7 +1051,8 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                                     ],
                                   ),
                                 ],
-                                if (notification.responseInfo!['time'] != null) ...[
+                                if (notification.responseInfo!['time'] !=
+                                    null) ...[
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
@@ -1090,7 +1072,9 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
-                                          _formatResponseTime(notification.responseInfo!['time']!),
+                                          _formatResponseTime(
+                                            notification.responseInfo!['time']!,
+                                          ),
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: Constants.textDark,
@@ -1112,7 +1096,9 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF5F3FF), // Light purple background
+                              color: const Color(
+                                0xFFF5F3FF,
+                              ), // Light purple background
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: const Color(0xFFE9D5FF), // Purple border
@@ -1129,11 +1115,13 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF9333EA), // Purple
+                                        color: const Color(
+                                          0xFF9333EA,
+                                        ), // Purple
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: const Text(
-                                        '✓ PM Response',
+                                        '✓ Marketing Response',
                                         style: TextStyle(
                                           fontSize: 10,
                                           color: Colors.white,
@@ -1143,7 +1131,8 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                                     ),
                                   ],
                                 ),
-                                if (notification.pmResponseInfo!['by'] != null) ...[
+                                if (notification.pmResponseInfo!['by'] !=
+                                    null) ...[
                                   const SizedBox(height: 6),
                                   Row(
                                     children: [
@@ -1166,7 +1155,9 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                                           notification.pmResponseInfo!['by']!,
                                           style: const TextStyle(
                                             fontSize: 11,
-                                            color: Color(0xFF6B21A8), // Dark purple
+                                            color: Color(
+                                              0xFF6B21A8,
+                                            ), // Dark purple
                                             fontWeight: FontWeight.w600,
                                           ),
                                           overflow: TextOverflow.ellipsis,
@@ -1175,7 +1166,8 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                                     ],
                                   ),
                                 ],
-                                if (notification.pmResponseInfo!['time'] != null) ...[
+                                if (notification.pmResponseInfo!['time'] !=
+                                    null) ...[
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
@@ -1195,10 +1187,15 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
-                                          _formatResponseTime(notification.pmResponseInfo!['time']!),
+                                          _formatResponseTime(
+                                            notification
+                                                .pmResponseInfo!['time']!,
+                                          ),
                                           style: const TextStyle(
                                             fontSize: 11,
-                                            color: Color(0xFF6B21A8), // Dark purple
+                                            color: Color(
+                                              0xFF6B21A8,
+                                            ), // Dark purple
                                             fontWeight: FontWeight.w600,
                                           ),
                                           overflow: TextOverflow.ellipsis,
@@ -1215,7 +1212,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                     ),
                   ),
                 ],
-                
+
                 // Action Buttons
                 if (requiresAction) ...[
                   // Respond Button (only show if not responded for action notifications)
@@ -1224,7 +1221,8 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => _handleNotificationResponse(notification),
+                        onPressed: () =>
+                            _handleNotificationResponse(notification),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: color,
                           foregroundColor: Colors.white,
@@ -1245,40 +1243,54 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                       ),
                     ),
                   ],
-                  // PM Response Button (only show if PM, requires action, and hasn't PM responded yet)
-                  if (_currentUser != null && 
-                      _currentUser!.isProjectManager &&
+                  // PM Response Button (only show if Kepala Marketing, requires action, and hasn't PM responded yet)
+                  if (_currentUser != null &&
+                      _currentUser!.isKepalaMarketing &&
                       requiresAction &&
                       notification.pmResponseInfo == null) ...[
                     Builder(
                       builder: (context) {
                         // Debug print
                         print('🔵 PM Response Button Condition Check:');
-                        print('   _currentUser != null: ${_currentUser != null}');
-                        print('   isProjectManager: ${_currentUser?.isProjectManager}');
-                        print('   pmResponseInfo == null: ${notification.pmResponseInfo == null}');
+                        print(
+                          '   _currentUser != null: ${_currentUser != null}',
+                        );
+                        print(
+                          '   isKepalaMarketing: ${_currentUser?.isKepalaMarketing}',
+                        );
+                        print(
+                          '   pmResponseInfo == null: ${notification.pmResponseInfo == null}',
+                        );
                         print('   Notification ID: ${notification.id}');
                         print('   Notification Type: ${notification.type}');
-                        
+
                         return Column(
                           children: [
                             const SizedBox(height: 8),
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
-                                onPressed: () => _handlePmResponse(notification),
+                                onPressed: () =>
+                                    _handlePmResponse(notification),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF9333EA), // Purple
+                                  backgroundColor: const Color(
+                                    0xFF9333EA,
+                                  ), // Purple
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   elevation: 0,
                                 ),
-                                icon: const Icon(Icons.supervisor_account, size: 18),
+                                icon: const Icon(
+                                  Icons.supervisor_account,
+                                  size: 18,
+                                ),
                                 label: const Text(
-                                  'PM Response',
+                                  'Marketing Response',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
@@ -1288,7 +1300,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                             ),
                           ],
                         );
-                      }
+                      },
                     ),
                   ],
                 ] else ...[
@@ -1299,7 +1311,10 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                     child: OutlinedButton.icon(
                       onPressed: () {
                         _markAsRead(notification);
-                        _showSnackBar('Operation can be done in website', isError: false);
+                        _showSnackBar(
+                          'Operation can be done in website',
+                          isError: false,
+                        );
                       },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: color,
@@ -1342,7 +1357,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
   String _formatTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inDays > 7) {
       return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
     } else if (difference.inDays > 0) {
