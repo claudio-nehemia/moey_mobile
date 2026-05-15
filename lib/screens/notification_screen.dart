@@ -5,20 +5,22 @@ import '../models/user.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
 import '../utils/constant.dart';
-import 'login_screen.dart';
+import '../widgets/shimmer_loading.dart';
 import 'dart:async';
 
 class NotificationScreen extends StatefulWidget {
-  const NotificationScreen({super.key});
+  final ValueChanged<int>? onUnreadCountChanged;
+  const NotificationScreen({super.key, this.onUnreadCountChanged});
 
   @override
-  State<NotificationScreen> createState() => _NotificationScreenState();
+  State<NotificationScreen> createState() => NotificationScreenState();
 }
 
-class _NotificationScreenState extends State<NotificationScreen>
-    with SingleTickerProviderStateMixin {
+class NotificationScreenState extends State<NotificationScreen> {
   final NotificationService _notificationService = NotificationService();
   final AuthService _authService = AuthService();
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
 
   List<NotificationModel> _notifications = [];
   User? _currentUser;
@@ -27,15 +29,13 @@ class _NotificationScreenState extends State<NotificationScreen>
   String _currentFilter = 'all';
   int _currentPage = 1;
   Timer? _pollTimer;
-  late AnimationController _fabController;
+  String _searchQuery = '';
+  int? _highlightedIndex;
+  Timer? _highlightTimer;
 
   @override
   void initState() {
     super.initState();
-    _fabController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
     _loadUserAndNotifications();
     _startPolling();
   }
@@ -43,7 +43,9 @@ class _NotificationScreenState extends State<NotificationScreen>
   @override
   void dispose() {
     _pollTimer?.cancel();
-    _fabController.dispose();
+    _scrollController.dispose();
+    _searchController.dispose();
+    _highlightTimer?.cancel();
     super.dispose();
   }
 
@@ -55,87 +57,61 @@ class _NotificationScreenState extends State<NotificationScreen>
   }
 
   Future<void> _loadUserAndNotifications() async {
-    // Get fresh user data from API (not from local storage)
     final user = await _authService.getCurrentUser();
-    setState(() {
-      _currentUser = user;
-    });
-
-    // Debug print
-    print('═══════════════════════════════════════');
-    print('🔍 DEBUG USER INFO');
-    print('User Name: ${user?.name}');
-    print('User Email: ${user?.email}');
-    print('User Role ID: ${user?.roleId}');
-    print('Is Kepala Marketing: ${user?.isKepalaMarketing}');
-    print('═══════════════════════════════════════');
-
+    setState(() => _currentUser = user);
     await _loadNotifications();
     await _loadUnreadCount();
   }
 
   Future<void> _loadNotifications({bool showLoading = true}) async {
-    if (showLoading) {
-      setState(() {
-        _isLoading = true;
-      });
-    }
+    if (showLoading) setState(() => _isLoading = true);
 
     try {
       final response = await _notificationService.getNotifications(
         page: _currentPage,
         filter: _currentFilter,
       );
-
       setState(() {
         _notifications = response.data;
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (mounted) {
-        _showSnackBar(e.toString(), isError: true);
-      }
+      setState(() => _isLoading = false);
+      if (mounted) _showSnackBar(e.toString(), isError: true);
     }
   }
 
   Future<void> _loadUnreadCount() async {
     try {
       final count = await _notificationService.getUnreadCount();
-      setState(() {
-        _unreadCount = count;
-      });
-    } catch (e) {
-      // Silently fail
-    }
+      setState(() => _unreadCount = count);
+      widget.onUnreadCountChanged?.call(count);
+    } catch (_) {}
   }
 
-  Future<void> _handleNotificationResponse(
-    NotificationModel notification,
-  ) async {
-    // Show loading dialog
+  // ═══════════════════════════════════════════════════
+  // RESPONSE HANDLERS (unchanged logic)
+  // ═══════════════════════════════════════════════════
+
+  Future<void> _handleNotificationResponse(NotificationModel notification) async {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => Center(
-        child: Card(
+        child: Container(
           margin: const EdgeInsets.all(50),
-          child: Padding(
-            padding: const EdgeInsets.all(30),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SpinKitThreeBounce(color: Constants.primaryColor, size: 30),
-                const SizedBox(height: 20),
-                const Text(
-                  'Processing response...',
-                  style: TextStyle(fontSize: 16),
-                ),
-              ],
-            ),
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: Constants.cardColor,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SpinKitThreeBounce(color: Constants.accentColor, size: 28),
+              const SizedBox(height: 16),
+              const Text('Memproses response...', style: TextStyle(fontSize: 14, color: Constants.textMedium)),
+            ],
           ),
         ),
       ),
@@ -143,19 +119,10 @@ class _NotificationScreenState extends State<NotificationScreen>
 
     try {
       final result = await _notificationService.handleResponse(notification.id);
-
       if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-
+        Navigator.pop(context);
         if (result.success) {
-          // Show success dialog
-          _showResponseDialog(
-            result.message,
-            result.action ?? 'view',
-            notification,
-          );
-
-          // Reload notifications
+          _showResponseDialog(result.message, result.action ?? 'view', notification);
           await _loadNotifications();
           await _loadUnreadCount();
         } else {
@@ -171,37 +138,42 @@ class _NotificationScreenState extends State<NotificationScreen>
   }
 
   Future<void> _handlePmResponse(NotificationModel notification) async {
-    // Confirm PM response
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.supervisor_account, color: Color(0xFF9333EA)),
-            SizedBox(width: 12),
-            Text('Marketing Response'),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Constants.marketingColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.supervisor_account, color: Constants.marketingColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Text('Marketing Response', style: TextStyle(fontSize: 17)),
           ],
         ),
         content: Text(
-          'Confirm that you have reviewed and approved this ${notification.title}?',
-          style: const TextStyle(fontSize: 15),
+          'Konfirmasi bahwa Anda sudah mereview dan menyetujui ${notification.title}?',
+          style: const TextStyle(fontSize: 14, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text('Batal', style: TextStyle(color: Constants.textMedium)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF9333EA),
+              backgroundColor: Constants.marketingColor,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Confirm'),
+            child: const Text('Konfirmasi'),
           ),
         ],
       ),
@@ -209,54 +181,36 @@ class _NotificationScreenState extends State<NotificationScreen>
 
     if (confirmed != true) return;
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => Center(
-        child: Card(
+        child: Container(
           margin: const EdgeInsets.all(50),
-          child: Padding(
-            padding: const EdgeInsets.all(30),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SpinKitThreeBounce(color: const Color(0xFF9333EA), size: 30),
-                const SizedBox(height: 20),
-                const Text(
-                  'Recording Marketing response...',
-                  style: TextStyle(fontSize: 16),
-                ),
-              ],
-            ),
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(color: Constants.cardColor, borderRadius: BorderRadius.circular(20)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SpinKitThreeBounce(color: Constants.marketingColor, size: 28),
+              const SizedBox(height: 16),
+              const Text('Merekam Marketing response...', style: TextStyle(fontSize: 14, color: Constants.textMedium)),
+            ],
           ),
         ),
       ),
     );
 
     try {
-      final result = await _notificationService.handlePmResponse(
-        notification.id,
-      );
-
+      final result = await _notificationService.handlePmResponse(notification.id);
       if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-
+        Navigator.pop(context);
         if (result['success'] == true) {
-          // Show success message
-          _showSnackBar(
-            result['message'] ?? 'Marketing Response recorded successfully',
-            isError: false,
-          );
-
-          // Reload notifications
+          _showSnackBar(result['message'] ?? 'Marketing Response berhasil dicatat', isError: false);
           await _loadNotifications();
           await _loadUnreadCount();
         } else {
-          _showSnackBar(
-            result['message'] ?? 'Failed to record Marketing response',
-            isError: true,
-          );
+          _showSnackBar(result['message'] ?? 'Gagal merekam Marketing response', isError: true);
         }
       }
     } catch (e) {
@@ -267,11 +221,7 @@ class _NotificationScreenState extends State<NotificationScreen>
     }
   }
 
-  void _showResponseDialog(
-    String message,
-    String action,
-    NotificationModel notification,
-  ) {
+  void _showResponseDialog(String message, String action, NotificationModel notification) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -284,61 +234,29 @@ class _NotificationScreenState extends State<NotificationScreen>
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: Constants.successColor.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 50,
-                ),
+                child: Icon(Icons.check_circle, color: Constants.successColor, size: 44),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'Response Recorded',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Constants.textLight),
-              ),
+              const Text('Response Berhasil', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Constants.textDark)),
+              const SizedBox(height: 10),
+              Text(message, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: Constants.textMedium, height: 1.4)),
               const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('Close'),
-                    ),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Constants.primaryColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        // Here you can navigate to the specific page if needed
-                        _showSnackBar('Feature coming soon!', isError: false);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Constants.primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(action == 'create' ? 'Create' : 'View'),
-                    ),
-                  ),
-                ],
+                  child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
               ),
             ],
           ),
@@ -349,77 +267,19 @@ class _NotificationScreenState extends State<NotificationScreen>
 
   Future<void> _markAsRead(NotificationModel notification) async {
     if (notification.isRead) return;
-
     final success = await _notificationService.markAsRead(notification.id);
-
     if (success) {
-      setState(() {
-        final index = _notifications.indexWhere((n) => n.id == notification.id);
-        if (index != -1) {
-          _notifications[index] = NotificationModel(
-            id: notification.id,
-            userId: notification.userId,
-            orderId: notification.orderId,
-            type: notification.type,
-            title: notification.title,
-            message: notification.message,
-            data: notification.data,
-            isRead: true,
-            readAt: DateTime.now().toIso8601String(),
-            createdAt: notification.createdAt,
-            updatedAt: notification.updatedAt,
-            order: notification.order,
-          );
-        }
-      });
+      await _loadNotifications(showLoading: false);
       await _loadUnreadCount();
     }
   }
 
   Future<void> _markAllAsRead() async {
     final success = await _notificationService.markAllAsRead();
-
     if (success && mounted) {
-      _showSnackBar('All notifications marked as read', isError: false);
+      _showSnackBar('Semua notifikasi ditandai sudah dibaca', isError: false);
       await _loadNotifications();
       await _loadUnreadCount();
-    }
-  }
-
-  Future<void> _logout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      await _authService.logout();
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
-      }
     }
   }
 
@@ -436,15 +296,12 @@ class _NotificationScreenState extends State<NotificationScreen>
       SnackBar(
         content: Row(
           children: [
-            Icon(
-              isError ? Icons.error_outline : Icons.check_circle_outline,
-              color: Colors.white,
-            ),
+            Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 20),
             const SizedBox(width: 12),
-            Expanded(child: Text(message)),
+            Expanded(child: Text(message, style: const TextStyle(fontSize: 13))),
           ],
         ),
-        backgroundColor: isError ? Colors.red : Colors.green,
+        backgroundColor: isError ? Constants.errorColor : Constants.successColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -452,27 +309,36 @@ class _NotificationScreenState extends State<NotificationScreen>
     );
   }
 
+  // ═══════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════
+
   Color _getNotificationColor(String type) {
     switch (type) {
       case NotificationModel.typeSurveyRequest:
       case NotificationModel.typeSurveyUlangRequest:
-        return Colors.blue;
-      case NotificationModel.typeSurveyScheduleRequest: // TAMBAH INI
-        return Colors.blue;
+      case NotificationModel.typeSurveyScheduleRequest:
+        return Constants.surveyColor;
       case NotificationModel.typeMoodboardRequest:
       case NotificationModel.typeDesignApproval:
       case NotificationModel.typeFinalDesignRequest:
-        return Colors.purple;
+        return Constants.designColor;
       case NotificationModel.typeEstimasiRequest:
       case NotificationModel.typeRabInternalRequest:
-        return Colors.orange;
+        return Constants.estimasiColor;
       case NotificationModel.typeCommitmentFeeRequest:
       case NotificationModel.typeInvoiceRequest:
-        return Colors.green;
+        return Constants.financeColor;
       case NotificationModel.typeKontrakRequest:
-        return Colors.red;
+        return Constants.kontrakColor;
+      case NotificationModel.typeGambarKerjaRequest:
+        return Constants.gambarKerjaColor;
+      case NotificationModel.typeApprovalMaterialRequest:
+        return Constants.approvalColor;
+      case NotificationModel.typeProjectManagementRequest:
+        return Constants.pmColor;
       default:
-        return Constants.primaryColor;
+        return Constants.konstruksiColor;
     }
   }
 
@@ -481,12 +347,13 @@ class _NotificationScreenState extends State<NotificationScreen>
       case NotificationModel.typeSurveyRequest:
       case NotificationModel.typeSurveyUlangRequest:
         return Icons.assignment_outlined;
-      case NotificationModel.typeSurveyScheduleRequest: // TAMBAH INI
+      case NotificationModel.typeSurveyScheduleRequest:
         return Icons.event_available_outlined;
       case NotificationModel.typeMoodboardRequest:
-      case NotificationModel.typeDesignApproval:
       case NotificationModel.typeFinalDesignRequest:
         return Icons.design_services_outlined;
+      case NotificationModel.typeDesignApproval:
+        return Icons.verified_outlined;
       case NotificationModel.typeEstimasiRequest:
       case NotificationModel.typeRabInternalRequest:
         return Icons.calculate_outlined;
@@ -499,6 +366,10 @@ class _NotificationScreenState extends State<NotificationScreen>
         return Icons.build_outlined;
       case NotificationModel.typeWorkplanRequest:
         return Icons.calendar_today_outlined;
+      case NotificationModel.typeGambarKerjaRequest:
+        return Icons.architecture_outlined;
+      case NotificationModel.typeApprovalMaterialRequest:
+        return Icons.check_circle_outline;
       case NotificationModel.typeProjectManagementRequest:
         return Icons.account_tree_outlined;
       default:
@@ -506,209 +377,211 @@ class _NotificationScreenState extends State<NotificationScreen>
     }
   }
 
+  String _formatTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays > 7) return '${dt.day}/${dt.month}/${dt.year}';
+    if (diff.inDays > 0) return '${diff.inDays} hari lalu';
+    if (diff.inHours > 0) return '${diff.inHours} jam lalu';
+    if (diff.inMinutes > 0) return '${diff.inMinutes} menit lalu';
+    return 'Baru saja';
+  }
+
+  String _formatResponseTime(String s) {
+    try {
+      final dt = DateTime.parse(s);
+      return '${dt.day}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}.${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return s;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════
+  // BUILD UI
+  // ═══════════════════════════════════════════════════
+
+  // Filtered list for search
+  List<NotificationModel> get _filteredNotifications {
+    if (_searchQuery.isEmpty) return _notifications;
+    final q = _searchQuery.toLowerCase();
+    return _notifications.where((n) {
+      return n.title.toLowerCase().contains(q) ||
+          n.message.toLowerCase().contains(q) ||
+          (n.order?.namaProject.toLowerCase().contains(q) ?? false);
+    }).toList();
+  }
+
+  void _scrollToNotification(NotificationModel viewOnlyNotif) {
+    // Check if there is an unresponded task for this order
+    int targetIndex = _filteredNotifications.indexWhere((n) =>
+        n.orderId == viewOnlyNotif.orderId &&
+        n.requiresActionResponse &&
+        !n.isResponded);
+
+    // If no unresponded task, look for responded task
+    if (targetIndex == -1) {
+      targetIndex = _filteredNotifications.indexWhere((n) =>
+          n.orderId == viewOnlyNotif.orderId &&
+          n.requiresActionResponse &&
+          n.isResponded);
+    }
+
+    if (targetIndex == -1) {
+      _showSnackBar('Data tugas tidak ditemukan di halaman ini', isError: false);
+      return;
+    }
+
+    // Mark as read
+    _markAsRead(viewOnlyNotif);
+
+    // Estimated card height ~180px
+    final offset = (targetIndex * 192.0).clamp(0.0, _scrollController.position.maxScrollExtent);
+    _scrollController.animateTo(
+      offset,
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+    );
+
+    // Highlight for 5 seconds
+    setState(() => _highlightedIndex = targetIndex);
+    _highlightTimer?.cancel();
+    _highlightTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) setState(() => _highlightedIndex = null);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Constants.backgroundColor,
-      appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          if (_currentUser != null) _buildUserInfo(),
-          _buildFilterChips(),
-          const Divider(height: 1),
-          Expanded(child: _buildNotificationsList()),
-        ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildSearchBar(),
+            _buildFilterChips(),
+            Expanded(child: _buildNotificationsList()),
+          ],
+        ),
       ),
-      floatingActionButton: _unreadCount > 0 ? _buildFAB() : null,
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      elevation: 0,
-      backgroundColor: Constants.primaryColor,
-      foregroundColor: Colors.white,
-      title: const Text(
-        'Notifications',
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-      ),
-      actions: [
-        if (_unreadCount > 0)
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Row(
+        children: [
+          const Text(
+            'Notifikasi',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Constants.textDark),
+          ),
+          if (_unreadCount > 0) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                color: Constants.errorColor,
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 '$_unreadCount',
-                style: TextStyle(
-                  color: Constants.primaryColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          onSelected: (value) {
-            if (value == 'mark_all') {
-              _markAllAsRead();
-            } else if (value == 'logout') {
-              _logout();
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'mark_all',
-              child: Row(
-                children: [
-                  Icon(Icons.done_all, size: 20),
-                  SizedBox(width: 12),
-                  Text('Mark all as read'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'logout',
-              child: Row(
-                children: [
-                  Icon(Icons.logout, size: 20, color: Colors.red),
-                  SizedBox(width: 12),
-                  Text('Logout', style: TextStyle(color: Colors.red)),
-                ],
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ),
           ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildUserInfo() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Constants.primaryColor, Constants.accentColor],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
-            child: CircleAvatar(
-              radius: 28,
-              backgroundColor: Constants.accentColor,
-              child: Text(
-                _currentUser!.name[0].toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24,
-                ),
-              ),
-            ),
+          const Spacer(),
+          GestureDetector(
+            onTap: () { _loadNotifications(); _loadUnreadCount(); },
+            child: Icon(Icons.refresh_rounded, color: Constants.textLight, size: 22),
           ),
           const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _currentUser!.name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _currentUser!.email,
-                  style: const TextStyle(fontSize: 14, color: Colors.white70),
-                ),
-              ],
+          GestureDetector(
+            onTap: _markAllAsRead,
+            child: Text(
+              'Tandai Semua',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Constants.surveyColor),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (val) => setState(() => _searchQuery = val),
+        style: const TextStyle(fontSize: 14, color: Constants.textDark),
+        decoration: InputDecoration(
+          hintText: 'Cari notifikasi...',
+          hintStyle: TextStyle(fontSize: 14, color: Constants.textLight.withOpacity(0.6)),
+          prefixIcon: Icon(Icons.search, size: 20, color: Constants.textLight),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? GestureDetector(
+                  onTap: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
+                  child: Icon(Icons.close, size: 18, color: Constants.textLight),
+                )
+              : null,
+          filled: true,
+          fillColor: Constants.surfaceColor,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Constants.primaryColor.withOpacity(0.3)),
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildFilterChips() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.white,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
       child: Row(
         children: [
-          _buildFilterChip('All', 'all', Icons.all_inbox),
+          _buildChip('Semua', 'all'),
           const SizedBox(width: 8),
-          _buildFilterChip('Unread', 'unread', Icons.mark_email_unread),
+          _buildChip('Belum Dibaca', 'unread'),
           const SizedBox(width: 8),
-          _buildFilterChip('Read', 'read', Icons.mark_email_read),
+          _buildChip('Sudah Dibaca', 'read'),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChip(String label, String value, IconData icon) {
-    final isSelected = _currentFilter == value;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _changeFilter(value),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            gradient: isSelected
-                ? LinearGradient(
-                    colors: [Constants.primaryColor, Constants.accentColor],
-                  )
-                : null,
-            color: isSelected ? null : Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: Constants.primaryColor.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
+  Widget _buildChip(String label, String value) {
+    final active = _currentFilter == value;
+    return GestureDetector(
+      onTap: () => _changeFilter(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? Constants.primaryColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? Constants.primaryColor : Constants.textLight.withOpacity(0.3),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected ? Colors.white : Constants.textDark,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Constants.textDark,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  fontSize: 13,
-                ),
-              ),
-            ],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+            color: active ? Colors.white : Constants.textMedium,
           ),
         ),
       ),
@@ -717,9 +590,7 @@ class _NotificationScreenState extends State<NotificationScreen>
 
   Widget _buildNotificationsList() {
     if (_isLoading) {
-      return Center(
-        child: SpinKitThreeBounce(color: Constants.primaryColor, size: 40),
-      );
+      return const NotificationSkeleton();
     }
 
     if (_notifications.isEmpty) {
@@ -727,656 +598,342 @@ class _NotificationScreenState extends State<NotificationScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.notifications_none_outlined,
-              size: 100,
-              color: Constants.textLight.withOpacity(0.5),
-            ),
+            Icon(Icons.notifications_off_outlined, size: 72, color: Constants.textLight.withOpacity(0.4)),
             const SizedBox(height: 16),
-            Text(
-              'No notifications',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: Constants.textLight,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'You\'re all caught up!',
-              style: TextStyle(
-                fontSize: 14,
-                color: Constants.textLight.withOpacity(0.7),
-              ),
-            ),
+            const Text('Tidak ada notifikasi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Constants.textMedium)),
+            const SizedBox(height: 6),
+            Text('Semua tugas sudah ditangani!', style: TextStyle(fontSize: 13, color: Constants.textLight)),
           ],
         ),
       );
     }
+
+    final list = _filteredNotifications;
 
     return RefreshIndicator(
       onRefresh: () async {
         await _loadNotifications();
         await _loadUnreadCount();
       },
+      color: Constants.accentColor,
       child: ListView.builder(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: _notifications.length,
-        itemBuilder: (context, index) {
-          final notification = _notifications[index];
-          return _buildNotificationCard(notification);
-        },
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        itemCount: list.length,
+        itemBuilder: (context, index) => _buildNotificationCard(list[index], index: index),
       ),
     );
   }
 
-  Widget _buildNotificationCard(NotificationModel notification) {
+  Widget _buildNotificationCard(NotificationModel notification, {int index = 0}) {
     final color = _getNotificationColor(notification.type);
     final icon = _getNotificationIcon(notification.type);
-    final DateTime createdAt = DateTime.parse(notification.createdAt);
-    final timeAgo = _formatTimeAgo(createdAt);
+    final createdAt = DateTime.tryParse(notification.createdAt) ?? DateTime.now();
+    final isUnread = !notification.isRead;
     final isResponded = notification.isResponded;
     final requiresAction = notification.requiresActionResponse;
+    final isHighlighted = _highlightedIndex == index;
 
-    // Determine card styling based on response status
-    final cardColor = isResponded
-        ? Colors.green.withOpacity(0.05)
-        : Colors.white;
-    final borderColor = isResponded
-        ? Colors.green.withOpacity(0.4)
-        : (notification.isRead ? Colors.grey[200]! : color.withOpacity(0.3));
-    final borderWidth = isResponded ? 2.0 : (notification.isRead ? 1.0 : 2.0);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: borderWidth),
-        boxShadow: [
-          BoxShadow(
-            color: isResponded
-                ? Colors.green.withOpacity(0.1)
-                : (notification.isRead
-                      ? Colors.grey.withOpacity(0.1)
-                      : color.withOpacity(0.15)),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _markAsRead(notification),
+    return GestureDetector(
+      onTap: () => _markAsRead(notification),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isHighlighted
+              ? Constants.infoColor.withOpacity(0.12)
+              : (isResponded ? Constants.successColor.withOpacity(0.03) : Constants.cardColor),
           borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+          border: Border.all(
+            color: isHighlighted
+                ? Constants.infoColor.withOpacity(0.5)
+                : (isResponded
+                    ? Constants.successColor.withOpacity(0.2)
+                    : (isUnread ? color.withOpacity(0.25) : Constants.secondaryColor.withOpacity(0.3))),
+            width: isHighlighted ? 2 : (isUnread ? 1.5 : 1),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Main row: icon + content + unread dot
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Stack(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isResponded
-                                  ? [
-                                      Colors.green,
-                                      Colors.green.withOpacity(0.7),
-                                    ]
-                                  : [color, color.withOpacity(0.7)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: isResponded
-                                    ? Colors.green.withOpacity(0.3)
-                                    : color.withOpacity(0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Icon(icon, color: Colors.white, size: 26),
-                        ),
-                        if (isResponded)
-                          Positioned(
-                            top: -2,
-                            right: -2,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.green,
-                                  width: 2,
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.check,
-                                size: 12,
-                                color: Colors.green,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  notification.title,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: notification.isRead
-                                        ? FontWeight.w600
-                                        : FontWeight.bold,
-                                    color: Constants.textDark,
-                                  ),
-                                ),
-                              ),
-                              if (!notification.isRead)
-                                Container(
-                                  width: 10,
-                                  height: 10,
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            notification.message,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Constants.textLight,
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 14,
-                                color: Constants.textLight,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                timeAgo,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Constants.textLight,
-                                ),
-                              ),
-                              if (notification.order != null) ...[
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: color.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.folder_outlined,
-                                          size: 12,
-                                          color: color,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Flexible(
-                                          child: Text(
-                                            notification.order!.namaProject,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: color,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                // Icon
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: isResponded ? Constants.successColor.withOpacity(0.1) : color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    isResponded ? Icons.check_circle_outline : icon,
+                    size: 22,
+                    color: isResponded ? Constants.successColor : color,
+                  ),
                 ),
-
-                // Response Status Badge (only for action-required notifications)
-                if (requiresAction && isResponded) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.green.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.check_circle,
-                              size: 18,
-                              color: Colors.green,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              notification.responseStatusText,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        // Show response details if available
-                        if (notification.responseInfo != null) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.grey.withOpacity(0.2),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (notification.responseInfo!['by'] !=
-                                    null) ...[
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.person_outline,
-                                        size: 14,
-                                        color: Constants.textLight,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Response By:',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Constants.textLight,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          notification.responseInfo!['by']!,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Constants.textDark,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                                if (notification.responseInfo!['time'] !=
-                                    null) ...[
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.schedule,
-                                        size: 14,
-                                        color: Constants.textLight,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Response Time:',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Constants.textLight,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          _formatResponseTime(
-                                            notification.responseInfo!['time']!,
-                                          ),
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Constants.textDark,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                        // PM Response Info Badge - Show separately from regular response
-                        if (notification.pmResponseInfo != null) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFFF5F3FF,
-                              ), // Light purple background
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0xFFE9D5FF), // Purple border
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(
-                                          0xFF9333EA,
-                                        ), // Purple
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: const Text(
-                                        '✓ Marketing Response',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (notification.pmResponseInfo!['by'] !=
-                                    null) ...[
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.person_outline,
-                                        size: 14,
-                                        color: Color(0xFF7C3AED), // Purple
-                                      ),
-                                      const SizedBox(width: 6),
-                                      const Text(
-                                        'By:',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFF7C3AED), // Purple
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          notification.pmResponseInfo!['by']!,
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: Color(
-                                              0xFF6B21A8,
-                                            ), // Dark purple
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                                if (notification.pmResponseInfo!['time'] !=
-                                    null) ...[
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.schedule,
-                                        size: 14,
-                                        color: Color(0xFF7C3AED), // Purple
-                                      ),
-                                      const SizedBox(width: 6),
-                                      const Text(
-                                        'Time:',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFF7C3AED), // Purple
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          _formatResponseTime(
-                                            notification
-                                                .pmResponseInfo!['time']!,
-                                          ),
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: Color(
-                                              0xFF6B21A8,
-                                            ), // Dark purple
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-
-                // Action Buttons
-                if (requiresAction) ...[
-                  // Respond Button (only show if not responded for action notifications)
-                  if (!isResponded) ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () =>
-                            _handleNotificationResponse(notification),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: color,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(Icons.send_outlined, size: 18),
-                        label: Text(
-                          notification.actionText,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  // PM Response Button (only show if Kepala Marketing, requires action, and hasn't PM responded yet)
-                  if (_currentUser != null &&
-                      _currentUser!.isKepalaMarketing &&
-                      requiresAction &&
-                      notification.pmResponseInfo == null) ...[
-                    Builder(
-                      builder: (context) {
-                        // Debug print
-                        print('🔵 PM Response Button Condition Check:');
-                        print(
-                          '   _currentUser != null: ${_currentUser != null}',
-                        );
-                        print(
-                          '   isKepalaMarketing: ${_currentUser?.isKepalaMarketing}',
-                        );
-                        print(
-                          '   pmResponseInfo == null: ${notification.pmResponseInfo == null}',
-                        );
-                        print('   Notification ID: ${notification.id}');
-                        print('   Notification Type: ${notification.type}');
-
-                        return Column(
-                          children: [
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () =>
-                                    _handlePmResponse(notification),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(
-                                    0xFF9333EA,
-                                  ), // Purple
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 0,
-                                ),
-                                icon: const Icon(
-                                  Icons.supervisor_account,
-                                  size: 18,
-                                ),
-                                label: const Text(
-                                  'Marketing Response',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ] else ...[
-                  // View/Information Button (for non-action notifications)
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        _markAsRead(notification);
-                        _showSnackBar(
-                          'Operation can be done in website',
-                          isError: false,
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: color,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: BorderSide(color: color, width: 1.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      label: const Text(
-                        'Check Web',
+                const SizedBox(width: 12),
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        notification.title,
                         style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: 15,
+                          fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
+                          color: Constants.textDark,
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        notification.message,
+                        style: TextStyle(fontSize: 13, color: Constants.textMedium, height: 1.4),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                if (isUnread)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8, top: 4),
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                     ),
                   ),
-                ],
               ],
             ),
-          ),
+
+            const SizedBox(height: 10),
+
+            // Project chip + Time
+            Row(
+              children: [
+                if (notification.order != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      notification.order!.namaProject,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                const SizedBox(width: 10),
+                Icon(Icons.access_time, size: 13, color: Constants.textLight),
+                const SizedBox(width: 3),
+                Text(_formatTimeAgo(createdAt), style: TextStyle(fontSize: 11, color: Constants.textLight)),
+              ],
+            ),
+
+            // Response info banners
+            if (requiresAction && isResponded) ...[
+              if (notification.responseInfo != null) ...[
+                const SizedBox(height: 10),
+                _buildResponseBanner(
+                  '✓ Direspon',
+                  notification.responseInfo!['by'],
+                  notification.responseInfo!['time'],
+                  Constants.successColor,
+                ),
+              ],
+              if (notification.pmResponseInfo != null) ...[
+                const SizedBox(height: 6),
+                _buildResponseBanner(
+                  '✓ Marketing Response',
+                  notification.pmResponseInfo!['by'],
+                  notification.pmResponseInfo!['time'],
+                  Constants.marketingColor,
+                ),
+              ],
+            ],
+
+            // Action buttons
+            if (requiresAction && !isResponded) ...[
+              const SizedBox(height: 12),
+              // Kepala Marketing: only Marketing Response button
+              // Staff: only regular Response button
+              if (_currentUser != null && _currentUser!.isKepalaMarketing) ...[
+                // PM only sees Marketing Response
+                if (notification.pmResponseInfo == null)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: ElevatedButton(
+                      onPressed: () => _handlePmResponse(notification),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Constants.marketingColor,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text(
+                        'Marketing Response',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  )
+                else
+                  _buildResponseBanner(
+                    '✓ Marketing Response',
+                    notification.pmResponseInfo!['by'],
+                    notification.pmResponseInfo!['time'],
+                    Constants.marketingColor,
+                  ),
+              ] else ...[
+                // Staff sees regular response button
+                SizedBox(
+                  width: double.infinity,
+                  height: 42,
+                  child: ElevatedButton(
+                    onPressed: () => _handleNotificationResponse(notification),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: color,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      notification.actionText,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+              // Show PM response info even when staff hasn't responded yet
+              if (!(_currentUser?.isKepalaMarketing ?? false) && notification.pmResponseInfo != null) ...[
+                const SizedBox(height: 8),
+                _buildResponseBanner(
+                  '✓ Marketing Response',
+                  notification.pmResponseInfo!['by'],
+                  notification.pmResponseInfo!['time'],
+                  Constants.marketingColor,
+                ),
+              ],
+            ],
+
+            // Responded notification - show PM button if PM hasn't responded
+            if (requiresAction &&
+                isResponded &&
+                _currentUser != null &&
+                _currentUser!.isKepalaMarketing &&
+                notification.pmResponseInfo == null) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 42,
+                child: ElevatedButton(
+                  onPressed: () => _handlePmResponse(notification),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Constants.marketingColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text(
+                    'Marketing Response',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+
+            // View-only button → Check Response / Menuju Tugas (scroll to related target card)
+            if (!requiresAction) ...[
+              const SizedBox(height: 12),
+              Builder(
+                builder: (context) {
+                  // Determine label based on related action notification status
+                  bool isRelatedResponded = false;
+                  bool hasRelatedAction = false;
+                  
+                  // Search all original notifications to determine status accurately
+                  for (final n in _notifications) {
+                    if (n.orderId == notification.orderId && n.requiresActionResponse) {
+                      hasRelatedAction = true;
+                      if (n.isResponded) {
+                        isRelatedResponded = true;
+                        break; // Responded takes precedence if both exist, or we just need to know it's done
+                      }
+                    }
+                  }
+
+                  // If there is an unresponded action, show Menuju Tugas. Otherwise if responded, Check Response.
+                  // If we can't determine, default to Menuju Tugas.
+                  final hasUnresponded = _notifications.any((n) => n.orderId == notification.orderId && n.requiresActionResponse && !n.isResponded);
+                  final buttonLabel = hasUnresponded ? 'Menuju Tugas' : 'Check Response';
+                  final buttonIcon = hasUnresponded ? Icons.arrow_forward : Icons.find_in_page_outlined;
+
+                  return SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _scrollToNotification(notification),
+                      icon: Icon(buttonIcon, size: 16, color: Constants.infoColor),
+                      label: Text(buttonLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Constants.infoColor,
+                        side: BorderSide(color: Constants.infoColor.withOpacity(0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  );
+                }
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildFAB() {
-    return FloatingActionButton.extended(
-      onPressed: _markAllAsRead,
-      backgroundColor: Constants.accentColor,
-      icon: const Icon(Icons.done_all),
-      label: const Text(
-        'Mark all read',
-        style: TextStyle(fontWeight: FontWeight.bold),
+  Widget _buildResponseBanner(String label, String? by, String? time, Color color) {
+    final parts = <String>[];
+    if (by != null) parts.add('oleh $by');
+    if (time != null) parts.add('— ${_formatResponseTime(time)}');
+    final detail = parts.join(' ');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.15)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle, size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(fontSize: 12, color: color),
+                children: [
+                  TextSpan(text: label.replaceAll('✓ ', ''), style: const TextStyle(fontWeight: FontWeight.w600)),
+                  if (detail.isNotEmpty) TextSpan(text: '  $detail', style: TextStyle(color: color.withOpacity(0.8))),
+                ],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  String _formatTimeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inDays > 7) {
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
-  }
-
-  String _formatResponseTime(String dateTimeString) {
-    try {
-      final dateTime = DateTime.parse(dateTimeString);
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return dateTimeString;
-    }
   }
 }
