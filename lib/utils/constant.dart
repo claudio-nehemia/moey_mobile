@@ -9,12 +9,13 @@ class Constants {
   static const primaryColor = Color(0xFF2C3E50);
   static const secondaryColor = Color(0xFFE8DCC4);
   static const accentColor = Color(0xFFD4AF37);
-  static const backgroundColor = Color(0xFFFAF8F5);
+  static const backgroundColor = Color(0xFFF8FAFC); // Clean slate-50 background
   static const cardColor = Color(0xFFFFFFFF);
-  static const surfaceColor = Color(0xFFF5F1EB);
-  static const textDark = Color(0xFF2C3E50);
-  static const textMedium = Color(0xFF5D6D7E);
-  static const textLight = Color(0xFF95A5A6);
+  static const surfaceColor = Color(0xFFF1F5F9); // Clean slate-100 surface
+  static const borderColor = Color(0xFFE2E8F0); // Clean slate-200 border for clean outlines
+  static const textDark = Color(0xFF0F172A); // Slate-900 for high-quality dark text
+  static const textMedium = Color(0xFF475569); // Slate-600 for secondary text
+  static const textLight = Color(0xFF94A3B8); // Slate-400 for captions and icons
 
   // Category Colors
   static const surveyColor = Color(0xFF5B8DB8);

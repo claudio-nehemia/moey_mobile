@@ -155,12 +155,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       decoration: const BoxDecoration(
-        color: Constants.primaryColor,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
+        color: Constants.cardColor,
+        border: Border(
+          bottom: BorderSide(color: Constants.borderColor, width: 1),
         ),
       ),
       child: SafeArea(
@@ -168,38 +167,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: [
             const SizedBox(height: 16),
-            // Avatar
+            // Avatar - Clean flat circle
             Container(
               width: 72,
               height: 72,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Constants.accentColor.withOpacity(0.25),
-                border: Border.all(color: Constants.accentColor.withOpacity(0.5), width: 2.5),
+                color: Constants.primaryColor.withOpacity(0.06),
+                border: Border.all(color: Constants.borderColor, width: 1.5),
               ),
               child: Center(
                 child: Text(
                   _getInitials(name),
-                  style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Constants.primaryColor, fontSize: 24, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
             const SizedBox(height: 14),
-            Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text(
+              name,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Constants.textDark, letterSpacing: -0.5),
+            ),
             const SizedBox(height: 4),
-            Text(email, style: TextStyle(fontSize: 13, color: Constants.accentColor.withOpacity(0.8))),
+            Text(
+              email,
+              style: const TextStyle(fontSize: 13, color: Constants.textMedium, fontWeight: FontWeight.w400),
+            ),
             if (isKM) ...[
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  color: Constants.primaryColor.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Constants.primaryColor.withOpacity(0.15)),
                 ),
                 child: const Text(
                   'Kepala Marketing',
-                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: Constants.primaryColor, fontSize: 10, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -215,10 +220,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Container(
         decoration: BoxDecoration(
           color: Constants.cardColor,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
-          ],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Constants.borderColor),
         ),
         child: Column(
           children: [
@@ -229,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: 'Informasi versi & perusahaan',
               onTap: _showAboutDialog,
             ),
-            Divider(height: 1, indent: 64, color: Constants.secondaryColor.withOpacity(0.4)),
+            const Divider(height: 1, indent: 64, color: Constants.borderColor),
             _buildMenuItem(
               icon: Icons.notifications_outlined,
               iconColor: Constants.accentColor,
@@ -241,13 +244,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     content: const Text('Pengaturan notifikasi dapat dikelola dari Settings HP Anda'),
                     backgroundColor: Constants.infoColor,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     margin: const EdgeInsets.all(16),
                   ),
                 );
               },
             ),
-            Divider(height: 1, indent: 64, color: Constants.secondaryColor.withOpacity(0.4)),
+            const Divider(height: 1, indent: 64, color: Constants.borderColor),
             _buildMenuItem(
               icon: Icons.logout_rounded,
               iconColor: Constants.errorColor,
@@ -274,19 +277,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  color: Constants.surfaceColor,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, size: 20, color: iconColor),
+                child: Icon(icon, size: 18, color: iconColor),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -296,17 +299,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: isDestructive ? Constants.errorColor : Constants.textDark,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: TextStyle(fontSize: 12, color: Constants.textLight)),
+                    Text(subtitle, style: const TextStyle(fontSize: 12, color: Constants.textMedium)),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, size: 20, color: Constants.textLight.withOpacity(0.5)),
+              Icon(Icons.chevron_right, size: 18, color: Constants.textLight.withOpacity(0.7)),
             ],
           ),
         ),
@@ -319,12 +322,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Text(
           AppConfig.companyName,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Constants.textMedium),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Constants.textMedium),
         ),
         const SizedBox(height: 4),
         Text(
           'Version ${AppConfig.appVersion}',
-          style: TextStyle(fontSize: 12, color: Constants.textLight),
+          style: const TextStyle(fontSize: 11, color: Constants.textLight),
         ),
       ],
     );

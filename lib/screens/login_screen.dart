@@ -86,57 +86,52 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: Constants.backgroundColor,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 40),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 48),
 
-                  // Logo
+                  // Logo - Flat and modern
                   Center(
                     child: Container(
-                      width: 72,
-                      height: 72,
+                      width: 64,
+                      height: 64,
                       decoration: BoxDecoration(
-                        color: Constants.primaryColor,
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Constants.primaryColor.withOpacity(0.2),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
-                      child: const Center(
-                        child: Text(
-                          'M',
-                          style: TextStyle(
-                            color: Constants.accentColor,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.asset(
+                          'assets/icon.jpg',
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                  // Title
+                  // Title & Subtitle with clean typography
                   const Text(
                     'Moey Living',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Constants.primaryColor,
-                      letterSpacing: 0.5,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: Constants.textDark,
+                      letterSpacing: -0.5,
                     ),
                   ),
 
@@ -146,45 +141,50 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Interior Design Management',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 14,
-                      color: Constants.accentColor.withOpacity(0.8),
-                      letterSpacing: 0.3,
+                      fontSize: 13,
+                      color: Constants.textMedium,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0.2,
                     ),
                   ),
 
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 40),
 
-                  // Email
-                  const Text(
-                    'Email',
+                  // Email Input Block
+                  Text(
+                    'Email Address',
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Constants.textDark,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Constants.textMedium,
                     ),
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(fontSize: 15, color: Constants.textDark),
+                    style: const TextStyle(fontSize: 14, color: Constants.textDark),
                     decoration: InputDecoration(
                       hintText: 'email@moeygroup.com',
-                      hintStyle: TextStyle(color: Constants.textLight.withOpacity(0.6)),
+                      hintStyle: TextStyle(color: Constants.textLight.withOpacity(0.8)),
                       filled: true,
-                      fillColor: Constants.cardColor,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Constants.secondaryColor),
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Constants.borderColor),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Constants.secondaryColor.withOpacity(0.5)),
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Constants.borderColor),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         borderSide: const BorderSide(color: Constants.primaryColor, width: 1.5),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Constants.errorColor, width: 1),
                       ),
                     ),
                     validator: (value) {
@@ -196,43 +196,47 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 20),
 
-                  // Password
-                  const Text(
+                  // Password Input Block
+                  Text(
                     'Password',
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Constants.textDark,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Constants.textMedium,
                     ),
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    style: const TextStyle(fontSize: 15, color: Constants.textDark),
+                    style: const TextStyle(fontSize: 14, color: Constants.textDark),
                     decoration: InputDecoration(
                       hintText: '••••••••',
-                      hintStyle: TextStyle(color: Constants.textLight.withOpacity(0.6)),
+                      hintStyle: TextStyle(color: Constants.textLight.withOpacity(0.8)),
                       filled: true,
-                      fillColor: Constants.cardColor,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Constants.secondaryColor),
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Constants.borderColor),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Constants.secondaryColor.withOpacity(0.5)),
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Constants.borderColor),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         borderSide: const BorderSide(color: Constants.primaryColor, width: 1.5),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Constants.errorColor, width: 1),
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                           color: Constants.textLight,
-                          size: 20,
+                          size: 18,
                         ),
                         onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
@@ -244,11 +248,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
-                  // Login Button
+                  // Login Button - Flat, consistent shape
                   SizedBox(
-                    height: 52,
+                    height: 48,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _login,
                       style: ElevatedButton.styleFrom(
@@ -257,30 +261,31 @@ class _LoginScreenState extends State<LoginScreen> {
                         disabledBackgroundColor: Constants.primaryColor.withOpacity(0.6),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       child: _isLoading
                           ? const SpinKitThreeBounce(color: Colors.white, size: 20)
                           : const Text(
                               'Login',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: 0.1),
                             ),
                     ),
                   ),
 
-                  const SizedBox(height: 60),
+                  const SizedBox(height: 48),
 
-                  // Footer
+                  // Footer - Minimal and elegant
                   Column(
                     children: [
-                      Text(
+                      const Text(
                         'PT. Moey Living Indonesia',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Constants.textLight,
+                          fontSize: 11,
+                          color: Constants.textMedium,
                           fontWeight: FontWeight.w500,
+                          letterSpacing: 0.1,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -288,8 +293,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         'v1.0.0',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 11,
-                          color: Constants.textLight.withOpacity(0.6),
+                          fontSize: 10,
+                          color: Constants.textLight,
                         ),
                       ),
                     ],
@@ -301,7 +306,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }

@@ -180,19 +180,33 @@ class _TasksScreenState extends State<TasksScreen> {
 
   Widget _buildStatCard(String value, String label, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.15)),
+        color: Constants.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Constants.borderColor),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Constants.textDark)),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 12, color: Constants.textMedium)),
-        ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: color, width: 4)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Constants.textDark),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Constants.textMedium),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -202,16 +216,20 @@ class _TasksScreenState extends State<TasksScreen> {
     return GestureDetector(
       onTap: () => setState(() => _filter = value),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? Constants.primaryColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: active ? Constants.primaryColor : Constants.textLight.withOpacity(0.3)),
+          color: active ? Constants.primaryColor.withOpacity(0.06) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: active ? Constants.primaryColor : Constants.borderColor),
         ),
         child: Text(
           label,
-          style: TextStyle(fontSize: 13, fontWeight: active ? FontWeight.w600 : FontWeight.w500, color: active ? Colors.white : Constants.textMedium),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+            color: active ? Constants.primaryColor : Constants.textMedium,
+          ),
         ),
       ),
     );
@@ -224,51 +242,59 @@ class _TasksScreenState extends State<TasksScreen> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Constants.cardColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Constants.secondaryColor.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Constants.borderColor),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, size: 22, color: color),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: color, width: 4)),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  n.title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Constants.textDark),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Constants.surfaceColor,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  n.order?.namaProject ?? '',
-                  style: const TextStyle(fontSize: 12, color: Constants.textLight),
+                child: Icon(icon, size: 18, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      n.title,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Constants.textDark),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      n.order?.namaProject ?? '',
+                      style: const TextStyle(fontSize: 12, color: Constants.textMedium),
+                    ),
+                    if (responseTime != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        'Direspon:  ${_formatDate(responseTime)}',
+                        style: const TextStyle(fontSize: 11, color: Constants.successColor, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ],
                 ),
-                if (responseTime != null) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    'Direspon:  ${_formatDate(responseTime)}',
-                    style: TextStyle(fontSize: 11, color: Constants.successColor),
-                  ),
-                ],
-              ],
-            ),
+              ),
+              Icon(Icons.check_circle_outline, size: 20, color: Constants.successColor.withOpacity(0.7)),
+            ],
           ),
-          Icon(Icons.check_circle_outline, size: 22, color: Constants.successColor.withOpacity(0.5)),
-        ],
+        ),
       ),
     );
   }
@@ -279,11 +305,17 @@ class _TasksScreenState extends State<TasksScreen> {
         padding: const EdgeInsets.only(top: 60),
         child: Column(
           children: [
-            Icon(Icons.assignment_turned_in_outlined, size: 64, color: Constants.textLight.withOpacity(0.4)),
+            Icon(Icons.assignment_turned_in_outlined, size: 56, color: Constants.textLight.withOpacity(0.4)),
             const SizedBox(height: 16),
-            const Text('Belum ada tugas selesai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Constants.textMedium)),
+            const Text(
+              'Belum ada tugas selesai',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Constants.textMedium),
+            ),
             const SizedBox(height: 6),
-            Text('Tugas yang sudah direspon akan muncul di sini', style: TextStyle(fontSize: 13, color: Constants.textLight)),
+            const Text(
+              'Tugas yang sudah direspon akan muncul di sini',
+              style: TextStyle(fontSize: 12, color: Constants.textLight),
+            ),
           ],
         ),
       ),

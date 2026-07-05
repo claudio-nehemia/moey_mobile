@@ -58,34 +58,44 @@ class NotificationScreenState extends State<NotificationScreen> {
 
   Future<void> _loadUserAndNotifications() async {
     final user = await _authService.getCurrentUser();
-    setState(() => _currentUser = user);
+    if (mounted) {
+      setState(() => _currentUser = user);
+    }
     await _loadNotifications();
     await _loadUnreadCount();
   }
 
   Future<void> _loadNotifications({bool showLoading = true}) async {
-    if (showLoading) setState(() => _isLoading = true);
+    if (showLoading && mounted) {
+      setState(() => _isLoading = true);
+    }
 
     try {
       final response = await _notificationService.getNotifications(
         page: _currentPage,
         filter: _currentFilter,
       );
-      setState(() {
-        _notifications = response.data;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _notifications = response.data;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
-      if (mounted) _showSnackBar(e.toString(), isError: true);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSnackBar(e.toString(), isError: true);
+      }
     }
   }
 
   Future<void> _loadUnreadCount() async {
     try {
       final count = await _notificationService.getUnreadCount();
-      setState(() => _unreadCount = count);
-      widget.onUnreadCountChanged?.call(count);
+      if (mounted) {
+        setState(() => _unreadCount = count);
+        widget.onUnreadCountChanged?.call(count);
+      }
     } catch (_) {}
   }
 
@@ -473,7 +483,7 @@ class NotificationScreenState extends State<NotificationScreen> {
         children: [
           const Text(
             'Notifikasi',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Constants.textDark),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Constants.textDark, letterSpacing: -0.5),
           ),
           if (_unreadCount > 0) ...[
             const SizedBox(width: 8),
@@ -481,25 +491,25 @@ class NotificationScreenState extends State<NotificationScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: Constants.errorColor,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 '$_unreadCount',
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
               ),
             ),
           ],
           const Spacer(),
           GestureDetector(
             onTap: () { _loadNotifications(); _loadUnreadCount(); },
-            child: Icon(Icons.refresh_rounded, color: Constants.textLight, size: 22),
+            child: const Icon(Icons.refresh_rounded, color: Constants.textLight, size: 20),
           ),
           const SizedBox(width: 16),
           GestureDetector(
             onTap: _markAllAsRead,
-            child: Text(
+            child: const Text(
               'Tandai Semua',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Constants.surveyColor),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Constants.primaryColor),
             ),
           ),
         ],
@@ -516,31 +526,31 @@ class NotificationScreenState extends State<NotificationScreen> {
         style: const TextStyle(fontSize: 14, color: Constants.textDark),
         decoration: InputDecoration(
           hintText: 'Cari notifikasi...',
-          hintStyle: TextStyle(fontSize: 14, color: Constants.textLight.withOpacity(0.6)),
-          prefixIcon: Icon(Icons.search, size: 20, color: Constants.textLight),
+          hintStyle: TextStyle(fontSize: 13, color: Constants.textLight.withOpacity(0.8)),
+          prefixIcon: const Icon(Icons.search, size: 18, color: Constants.textLight),
           suffixIcon: _searchQuery.isNotEmpty
               ? GestureDetector(
                   onTap: () {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
                   },
-                  child: Icon(Icons.close, size: 18, color: Constants.textLight),
+                  child: const Icon(Icons.close, size: 16, color: Constants.textLight),
                 )
               : null,
           filled: true,
-          fillColor: Constants.surfaceColor,
+          fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Constants.borderColor),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Constants.borderColor),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Constants.primaryColor.withOpacity(0.3)),
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Constants.primaryColor, width: 1.2),
           ),
         ),
       ),
@@ -567,21 +577,21 @@ class NotificationScreenState extends State<NotificationScreen> {
     return GestureDetector(
       onTap: () => _changeFilter(value),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? Constants.primaryColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          color: active ? Constants.primaryColor.withOpacity(0.06) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: active ? Constants.primaryColor : Constants.textLight.withOpacity(0.3),
+            color: active ? Constants.primaryColor : Constants.borderColor,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-            color: active ? Colors.white : Constants.textMedium,
+            color: active ? Constants.primaryColor : Constants.textMedium,
           ),
         ),
       ),
@@ -598,11 +608,11 @@ class NotificationScreenState extends State<NotificationScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.notifications_off_outlined, size: 72, color: Constants.textLight.withOpacity(0.4)),
+            Icon(Icons.notifications_off_outlined, size: 64, color: Constants.textLight.withOpacity(0.4)),
             const SizedBox(height: 16),
-            const Text('Tidak ada notifikasi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Constants.textMedium)),
+            const Text('Tidak ada notifikasi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Constants.textMedium)),
             const SizedBox(height: 6),
-            Text('Semua tugas sudah ditangani!', style: TextStyle(fontSize: 13, color: Constants.textLight)),
+            const Text('Semua tugas sudah ditangani!', style: TextStyle(fontSize: 13, color: Constants.textLight)),
           ],
         ),
       );
@@ -638,41 +648,51 @@ class NotificationScreenState extends State<NotificationScreen> {
     return GestureDetector(
       onTap: () => _markAsRead(notification),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 400),
+        duration: const Duration(milliseconds: 300),
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isHighlighted
-              ? Constants.infoColor.withOpacity(0.12)
-              : (isResponded ? Constants.successColor.withOpacity(0.03) : Constants.cardColor),
-          borderRadius: BorderRadius.circular(16),
+              ? Constants.infoColor.withOpacity(0.06)
+              : Constants.cardColor,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isHighlighted
-                ? Constants.infoColor.withOpacity(0.5)
-                : (isResponded
-                    ? Constants.successColor.withOpacity(0.2)
-                    : (isUnread ? color.withOpacity(0.25) : Constants.secondaryColor.withOpacity(0.3))),
-            width: isHighlighted ? 2 : (isUnread ? 1.5 : 1),
+                ? Constants.infoColor.withOpacity(0.4)
+                : Constants.borderColor,
           ),
         ),
-        child: Column(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: isHighlighted
+                      ? Constants.infoColor
+                      : (isResponded ? Constants.successColor : color),
+                  width: 4,
+                ),
+              ),
+            ),
+            padding: const EdgeInsets.all(14),
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Main row: icon + content + unread dot
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Icon
+                // Icon - clean container style
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
-                    color: isResponded ? Constants.successColor.withOpacity(0.1) : color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Constants.surfaceColor,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     isResponded ? Icons.check_circle_outline : icon,
-                    size: 22,
+                    size: 18,
                     color: isResponded ? Constants.successColor : color,
                   ),
                 ),
@@ -685,7 +705,7 @@ class NotificationScreenState extends State<NotificationScreen> {
                       Text(
                         notification.title,
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
                           color: Constants.textDark,
                         ),
@@ -693,7 +713,7 @@ class NotificationScreenState extends State<NotificationScreen> {
                       const SizedBox(height: 4),
                       Text(
                         notification.message,
-                        style: TextStyle(fontSize: 13, color: Constants.textMedium, height: 1.4),
+                        style: const TextStyle(fontSize: 12, color: Constants.textMedium, height: 1.4),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -714,27 +734,28 @@ class NotificationScreenState extends State<NotificationScreen> {
 
             const SizedBox(height: 10),
 
-            // Project chip + Time
+            // Project chip + Time - clean neutral aesthetic
             Row(
               children: [
                 if (notification.order != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(8),
+                      color: Constants.surfaceColor,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Constants.borderColor),
                     ),
                     child: Text(
                       notification.order!.namaProject,
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Constants.textMedium),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 const SizedBox(width: 10),
-                Icon(Icons.access_time, size: 13, color: Constants.textLight),
+                const Icon(Icons.access_time, size: 12, color: Constants.textLight),
                 const SizedBox(width: 3),
-                Text(_formatTimeAgo(createdAt), style: TextStyle(fontSize: 11, color: Constants.textLight)),
+                Text(_formatTimeAgo(createdAt), style: const TextStyle(fontSize: 11, color: Constants.textLight)),
               ],
             ),
 
@@ -763,25 +784,22 @@ class NotificationScreenState extends State<NotificationScreen> {
             // Action buttons
             if (requiresAction && !isResponded) ...[
               const SizedBox(height: 12),
-              // Kepala Marketing: only Marketing Response button
-              // Staff: only regular Response button
               if (_currentUser != null && _currentUser!.isKepalaMarketing) ...[
-                // PM only sees Marketing Response
                 if (notification.pmResponseInfo == null)
                   SizedBox(
                     width: double.infinity,
-                    height: 42,
+                    height: 38,
                     child: ElevatedButton(
                       onPressed: () => _handlePmResponse(notification),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Constants.marketingColor,
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       child: const Text(
                         'Marketing Response',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ),
                   )
@@ -793,28 +811,26 @@ class NotificationScreenState extends State<NotificationScreen> {
                     Constants.marketingColor,
                   ),
               ] else ...[
-                // Staff sees regular response button
                 SizedBox(
                   width: double.infinity,
-                  height: 42,
+                  height: 38,
                   child: ElevatedButton(
                     onPressed: () => _handleNotificationResponse(notification),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: color,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: Text(
                       notification.actionText,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
               ],
-              // Show PM response info even when staff hasn't responded yet
               if (!(_currentUser?.isKepalaMarketing ?? false) && notification.pmResponseInfo != null) ...[
                 const SizedBox(height: 8),
                 _buildResponseBanner(
@@ -835,60 +851,43 @@ class NotificationScreenState extends State<NotificationScreen> {
               const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
-                height: 42,
+                height: 38,
                 child: ElevatedButton(
                   onPressed: () => _handlePmResponse(notification),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Constants.marketingColor,
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   child: const Text(
                     'Marketing Response',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
             ],
 
-            // View-only button → Check Response / Menuju Tugas (scroll to related target card)
+            // View-only button
             if (!requiresAction) ...[
               const SizedBox(height: 12),
               Builder(
                 builder: (context) {
-                  // Determine label based on related action notification status
-                  bool isRelatedResponded = false;
-                  bool hasRelatedAction = false;
-                  
-                  // Search all original notifications to determine status accurately
-                  for (final n in _notifications) {
-                    if (n.orderId == notification.orderId && n.requiresActionResponse) {
-                      hasRelatedAction = true;
-                      if (n.isResponded) {
-                        isRelatedResponded = true;
-                        break; // Responded takes precedence if both exist, or we just need to know it's done
-                      }
-                    }
-                  }
-
-                  // If there is an unresponded action, show Menuju Tugas. Otherwise if responded, Check Response.
-                  // If we can't determine, default to Menuju Tugas.
                   final hasUnresponded = _notifications.any((n) => n.orderId == notification.orderId && n.requiresActionResponse && !n.isResponded);
                   final buttonLabel = hasUnresponded ? 'Menuju Tugas' : 'Check Response';
                   final buttonIcon = hasUnresponded ? Icons.arrow_forward : Icons.find_in_page_outlined;
 
                   return SizedBox(
                     width: double.infinity,
-                    height: 42,
+                    height: 38,
                     child: OutlinedButton.icon(
                       onPressed: () => _scrollToNotification(notification),
-                      icon: Icon(buttonIcon, size: 16, color: Constants.infoColor),
-                      label: Text(buttonLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      icon: Icon(buttonIcon, size: 14, color: Constants.primaryColor),
+                      label: Text(buttonLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Constants.infoColor,
-                        side: BorderSide(color: Constants.infoColor.withOpacity(0.3)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        foregroundColor: Constants.primaryColor,
+                        side: const BorderSide(color: Constants.borderColor),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
                   );
@@ -898,8 +897,10 @@ class NotificationScreenState extends State<NotificationScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildResponseBanner(String label, String? by, String? time, Color color) {
     final parts = <String>[];
@@ -911,18 +912,18 @@ class NotificationScreenState extends State<NotificationScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.15)),
+        color: color.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.12)),
       ),
       child: Row(
         children: [
-          Icon(Icons.check_circle, size: 16, color: color),
+          Icon(Icons.check_circle, size: 14, color: color),
           const SizedBox(width: 8),
           Expanded(
             child: RichText(
               text: TextSpan(
-                style: TextStyle(fontSize: 12, color: color),
+                style: TextStyle(fontSize: 11, color: color),
                 children: [
                   TextSpan(text: label.replaceAll('✓ ', ''), style: const TextStyle(fontWeight: FontWeight.w600)),
                   if (detail.isNotEmpty) TextSpan(text: '  $detail', style: TextStyle(color: color.withOpacity(0.8))),
