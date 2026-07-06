@@ -9,6 +9,7 @@ import '../widgets/shimmer_loading.dart';
 import 'dart:async';
 import 'create_order_screen.dart';
 import 'order_detail_screen.dart';
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToNotifications;
@@ -48,11 +49,27 @@ class HomeScreenState extends State<HomeScreen> {
 
     try {
       final user = await _authService.getCurrentUser();
+      final token = await _authService.getToken();
+
+      print("DEBUG_ALERTS: Loaded user ${user?.name} (ID: ${user?.id}, Role: ${user?.roleName})");
+      print("DEBUG_ALERTS: User nearestTask payload: ${user?.nearestTask}");
+      print("DEBUG_ALERTS: User overdueTask payload: ${user?.overdueTask}");
+
+      if (user == null || token == null) {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+            (route) => false,
+          );
+        }
+        return;
+      }
+
       final response = await _notificationService.getNotifications(perPage: 50);
       final count = await _notificationService.getUnreadCount();
 
       List<dynamic> orders = [];
-      if (user?.isCustomerService == true) {
+      if (user.isCustomerService == true) {
         try {
           orders = await _orderService.getOrders();
         } catch (_) {}
@@ -68,6 +85,17 @@ class HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
+      print("DEBUG_ALERTS: Error loading data: $e");
+      final token = await _authService.getToken();
+      if (token == null) {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+            (route) => false,
+          );
+        }
+        return;
+      }
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -637,17 +665,33 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildAlertsSection() {
+    final overdueAlert = _currentUser?.overdueTask;
     final taskAlert = _currentUser?.nearestTask;
     final paymentAlert = _currentUser?.nearestPayment;
     final isLegalAdmin = _currentUser?.isLegalAdmin == true;
 
-    if (taskAlert == null && (paymentAlert == null || !isLegalAdmin)) {
+    print("DEBUG_ALERTS: Render _buildAlertsSection called.");
+    print("DEBUG_ALERTS: Local overdueAlert: $overdueAlert");
+    print("DEBUG_ALERTS: Local taskAlert: $taskAlert");
+    print("DEBUG_ALERTS: Local paymentAlert: $paymentAlert");
+
+    if (overdueAlert == null && taskAlert == null && (paymentAlert == null || !isLegalAdmin)) {
       return const SizedBox.shrink();
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (overdueAlert != null) ...[
+          _buildAlertCard(
+            title: 'Peringatan Tugas Terlambat',
+            message: overdueAlert['message'] ?? '',
+            daysLeft: (overdueAlert['days_left'] as num?)?.toInt() ?? 0,
+            stripeColor: Constants.errorColor,
+            icon: Icons.warning_amber_rounded,
+          ),
+          const SizedBox(height: 12),
+        ],
         if (taskAlert != null) ...[
           _buildAlertCard(
             title: 'Info Tugas Terdekat',

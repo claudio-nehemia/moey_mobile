@@ -9,6 +9,7 @@ class User {
   final String? createdAt;
   final String? updatedAt;
   final Map<String, dynamic>? nearestTask;
+  final Map<String, dynamic>? overdueTask;
   final Map<String, dynamic>? nearestPayment;
 
   User({
@@ -22,6 +23,7 @@ class User {
     this.createdAt,
     this.updatedAt,
     this.nearestTask,
+    this.overdueTask,
     this.nearestPayment,
   });
 
@@ -40,6 +42,7 @@ class User {
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
       nearestTask: json['nearest_task'],
+      overdueTask: json['overdue_task'],
       nearestPayment: json['nearest_payment'],
     );
   }
@@ -56,6 +59,7 @@ class User {
       'created_at': createdAt,
       'updated_at': updatedAt,
       'nearest_task': nearestTask,
+      'overdue_task': overdueTask,
       'nearest_payment': nearestPayment,
     };
   }

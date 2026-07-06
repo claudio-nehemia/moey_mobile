@@ -7,6 +7,7 @@ import 'notification_screen.dart';
 import 'tasks_screen.dart';
 import 'profile_screen.dart';
 import 'orders_list_screen.dart';
+import 'login_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialTab;
@@ -35,6 +36,18 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _loadUser() async {
     try {
       final user = await _authService.getCurrentUser();
+      final token = await _authService.getToken();
+
+      if (user == null || token == null) {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+            (route) => false,
+          );
+        }
+        return;
+      }
+
       if (mounted) {
         setState(() {
           _currentUser = user;
@@ -42,6 +55,17 @@ class _MainScreenState extends State<MainScreen> {
         });
       }
     } catch (_) {
+      final token = await _authService.getToken();
+      if (token == null) {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+            (route) => false,
+          );
+        }
+        return;
+      }
+
       if (mounted) {
         setState(() {
           _isUserLoaded = true;

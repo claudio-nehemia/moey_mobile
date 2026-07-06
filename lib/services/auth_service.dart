@@ -139,6 +139,11 @@ class AuthService {
           await saveUser(user);
           return user;
         }
+      } else if (response.statusCode == 401) {
+        // Token is invalid/expired! Clear local storage so user is forced to log in again.
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_tokenKey);
+        await prefs.remove(_userKey);
       }
       
       return null;

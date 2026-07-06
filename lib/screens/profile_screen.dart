@@ -25,6 +25,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUser() async {
     final user = await _authService.getCurrentUser();
+    final token = await _authService.getToken();
+    
+    if (user == null || token == null) {
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+          (route) => false,
+        );
+      }
+      return;
+    }
+
     if (mounted) setState(() { _currentUser = user; _isLoading = false; });
   }
 

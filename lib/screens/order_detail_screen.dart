@@ -814,10 +814,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final uri = Uri.parse(urlString);
 
     try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        throw Exception('Tidak dapat membuka file di aplikasi eksternal');
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        throw Exception('Sistem tidak menemukan aplikasi untuk membuka tautan ini');
       }
     } catch (e) {
       if (mounted) {

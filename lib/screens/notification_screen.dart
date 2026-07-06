@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../utils/constant.dart';
 import '../widgets/shimmer_loading.dart';
 import 'dart:async';
+import 'login_screen.dart';
 
 class NotificationScreen extends StatefulWidget {
   final ValueChanged<int>? onUnreadCountChanged;
@@ -58,6 +59,18 @@ class NotificationScreenState extends State<NotificationScreen> {
 
   Future<void> _loadUserAndNotifications() async {
     final user = await _authService.getCurrentUser();
+    final token = await _authService.getToken();
+    
+    if (user == null || token == null) {
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+          (route) => false,
+        );
+      }
+      return;
+    }
+
     if (mounted) {
       setState(() => _currentUser = user);
     }

@@ -96,10 +96,11 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
-    final isLoggedIn = await _authService.isLoggedIn();
+    final user = await _authService.getCurrentUser();
+    final token = await _authService.getToken();
 
     if (mounted) {
-      if (isLoggedIn) {
+      if (user != null && token != null) {
         await FCMService().setupAfterLogin();
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
@@ -110,9 +111,27 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         );
       } else {
+        // Handle potential offline situation where token still exists but user is null
+        if (token != null) {
+          final cachedUser = await _authService.getUser();
+          if (cachedUser != null) {
+            await FCMService().setupAfterLogin();
+            Navigator.of(context).pushReplacement(
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => const MainScreen(),
+                transitionsBuilder: (_, animation, __, child) =>
+                    FadeTransition(opacity: animation, child: child),
+                transitionDuration: const Duration(milliseconds: 500),
+              ),
+            );
+            return;
+          }
+        }
+
+        // Otherwise (token cleared/invalid/missing), route to LoginScreen
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder: (_, __, ___) => const LoginScreen(),
+            pageBuilder: (_, __, ___) => LoginScreen(),
             transitionsBuilder: (_, animation, __, child) =>
                 FadeTransition(opacity: animation, child: child),
             transitionDuration: const Duration(milliseconds: 500),
