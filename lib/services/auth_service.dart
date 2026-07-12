@@ -151,4 +151,32 @@ class AuthService {
       return null;
     }
   }
+
+  // Fetch dashboard data from API (including presence recap, announcements, and mobile feature toggles)
+  Future<Map<String, dynamic>?> getDashboardData() async {
+    try {
+      final token = await getToken();
+      if (token == null) return null;
+
+      final response = await http.get(
+        Uri.parse('${Constants.baseUrl}/mobile/dashboard'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return data['data'];
+        }
+      }
+      return null;
+    } catch (e) {
+      print("Error fetching dashboard data: $e");
+      return null;
+    }
+  }
 }

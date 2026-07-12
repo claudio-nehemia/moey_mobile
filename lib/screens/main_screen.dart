@@ -8,6 +8,7 @@ import 'tasks_screen.dart';
 import 'profile_screen.dart';
 import 'orders_list_screen.dart';
 import 'login_screen.dart';
+import 'attendance_tab_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialTab;
@@ -94,12 +95,25 @@ class _MainScreenState extends State<MainScreen> {
 
   List<Widget> _buildPages() {
     return [
-      HomeScreen(onNavigateToNotifications: () => _switchTab(1)),
-      NotificationScreen(
-        onUnreadCountChanged: (count) {
-          if (mounted) setState(() => _unreadCount = count);
+      HomeScreen(
+        onNavigateToNotifications: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => NotificationScreen(
+                onUnreadCountChanged: (count) {
+                  if (mounted) {
+                    setState(() {
+                      _unreadCount = count;
+                    });
+                  }
+                },
+              ),
+            ),
+          );
         },
       ),
+      const AttendanceTabScreen(),
       if (_isCS) const OrdersListScreen(),
       const TasksScreen(),
       const ProfileScreen(),
@@ -153,7 +167,7 @@ class _MainScreenState extends State<MainScreen> {
     if (_isCS) {
       return [
         _buildNavItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
-        _buildNavItem(1, Icons.notifications_outlined, Icons.notifications_rounded, 'Notifikasi', badge: _unreadCount),
+        _buildNavItem(1, Icons.fingerprint_rounded, Icons.fingerprint_rounded, 'Absensi'),
         _buildNavItem(2, Icons.business_center_outlined, Icons.business_center_rounded, 'Orders'),
         _buildNavItem(3, Icons.assignment_outlined, Icons.assignment_rounded, 'Tugas'),
         _buildNavItem(4, Icons.person_outline, Icons.person_rounded, 'Profile'),
@@ -161,7 +175,7 @@ class _MainScreenState extends State<MainScreen> {
     } else {
       return [
         _buildNavItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
-        _buildNavItem(1, Icons.notifications_outlined, Icons.notifications_rounded, 'Notifikasi', badge: _unreadCount),
+        _buildNavItem(1, Icons.fingerprint_rounded, Icons.fingerprint_rounded, 'Absensi'),
         _buildNavItem(2, Icons.assignment_outlined, Icons.assignment_rounded, 'Tugas'),
         _buildNavItem(3, Icons.person_outline, Icons.person_rounded, 'Profile'),
       ];

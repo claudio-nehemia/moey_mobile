@@ -10,6 +10,11 @@ import 'dart:async';
 import 'create_order_screen.dart';
 import 'order_detail_screen.dart';
 import 'login_screen.dart';
+import 'presence_screen.dart';
+import 'izin_cuti_screen.dart';
+import 'lembur_screen.dart';
+import 'kunjungan_screen.dart';
+import 'aktivitas_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToNotifications;
@@ -19,7 +24,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => HomeScreenState();
 }
 
-class HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final NotificationService _notificationService = NotificationService();
   final AuthService _authService = AuthService();
   final OrderService _orderService = OrderService();
@@ -29,19 +34,131 @@ class HomeScreenState extends State<HomeScreen> {
   List<dynamic> _csOrders = [];
   int _unreadCount = 0;
   bool _isLoading = true;
+  Map<String, dynamic>? _dashboardData;
+  bool _featureVisitTracking = true;
+  bool _featureDailyActivity = true;
   Timer? _pollTimer;
+  Timer? _clockTimer;
+  String _timeString = '';
+  String _dateString = '';
+  bool _birthdayShown = false;
+
+  int _activeTab = 0; // 0 = Tugas & Proyek, 1 = Riwayat Presensi
+  late AnimationController _avatarPulseController;
+  late Animation<double> _avatarPulseAnimation;
 
   @override
   void initState() {
     super.initState();
     _loadData();
     _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _loadData(silent: true));
+    _timeString = _formatDateTime(DateTime.now());
+    _dateString = _formatFullDate(DateTime.now());
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (Timer t) => _updateTime());
+
+    _avatarPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+    _avatarPulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_avatarPulseController);
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _clockTimer?.cancel();
+    _avatarPulseController.dispose();
     super.dispose();
+  }
+
+  void _updateTime() {
+    if (mounted) {
+      setState(() {
+        _timeString = _formatDateTime(DateTime.now());
+        _dateString = _formatFullDate(DateTime.now());
+      });
+    }
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    String hour = dateTime.hour.toString().padLeft(2, '0');
+    String minute = dateTime.minute.toString().padLeft(2, '0');
+    String second = dateTime.second.toString().padLeft(2, '0');
+    return "$hour:$minute:$second";
+  }
+
+  String _formatFullDate(DateTime dateTime) {
+    const List<String> days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const List<String> months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    String dayName = days[dateTime.weekday % 7];
+    String day = dateTime.day.toString();
+    String monthName = months[dateTime.month - 1];
+    String year = dateTime.year.toString();
+    return "$dayName, $day $monthName $year";
+  }
+
+  void _showBirthdayDialog(String age) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.teal.shade800, Colors.green.shade700],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '🎂',
+                  style: TextStyle(fontSize: 64),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Selamat Ulang Tahun!',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _currentUser?.name ?? '',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Semoga sukses, sehat selalu, dan dilancarkan rezekinya. Selamat hari lahir yang ke-$age tahun! 🎉',
+                  style: const TextStyle(fontSize: 12, color: Colors.white70, height: 1.4),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.teal.shade800,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  ),
+                  child: const Text('Terima Kasih! 🙏', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _loadData({bool silent = false}) async {
@@ -75,14 +192,34 @@ class HomeScreenState extends State<HomeScreen> {
         } catch (_) {}
       }
 
+      Map<String, dynamic>? dashboardData;
+      try {
+        dashboardData = await _authService.getDashboardData();
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _currentUser = user;
           _notifications = response.data;
           _unreadCount = count;
           _csOrders = orders;
+          _dashboardData = dashboardData;
+          if (dashboardData != null && dashboardData['features'] != null) {
+            _featureVisitTracking = dashboardData['features']['visit_tracking'] ?? true;
+            _featureDailyActivity = dashboardData['features']['daily_activity'] ?? true;
+          }
           _isLoading = false;
         });
+
+        // Trigger birthday celebration
+        final bdayData = dashboardData;
+        if (bdayData != null && bdayData['is_birthday'] == true && !_birthdayShown) {
+          _birthdayShown = true;
+          final String age = bdayData['umur']?.toString() ?? '0';
+          Future.microtask(() {
+            _showBirthdayDialog(age);
+          });
+        }
       }
     } catch (e) {
       print("DEBUG_ALERTS: Error loading data: $e");
@@ -218,13 +355,20 @@ class HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildAlertsSection(),
-                          _buildSummaryCards(),
-                          const SizedBox(height: 24),
-                          _buildRecentTasks(),
-                          const SizedBox(height: 24),
+                          _buildAttendanceMenu(),
                           _buildQuickActions(),
-                          _buildCsOrdersList(),
+                          const SizedBox(height: 16),
+                          _buildAlertsSection(),
+                          _buildAnnouncementSection(),
+                          _buildSummaryCards(),
+                          _buildTabBar(),
+                          if (_activeTab == 0) ...[
+                            _buildRecentTasks(),
+                            const SizedBox(height: 16),
+                            _buildCsOrdersList(),
+                          ] else ...[
+                            _buildPresenceHistoryList(),
+                          ],
                         ],
                       ),
                     ),
@@ -257,80 +401,241 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHeader() {
     final firstName = _currentUser?.name.split(' ').first ?? 'User';
+    final userRole = _currentUser?.roleName ?? 'Karyawan';
+    
+    // Check if we have check-in/out times from _dashboardData
+    final p = _dashboardData?['presensi'];
+    final String jamIn = p != null && p['jam_in'] != null ? p['jam_in'] : '--:--';
+    final String jamOut = p != null && p['jam_out'] != null ? p['jam_out'] : '--:--';
+    final String? fotoIn = p != null ? p['foto_in'] : null;
+    final String? fotoOut = p != null ? p['foto_out'] : null;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-      decoration: const BoxDecoration(
-        color: Constants.cardColor,
-        border: Border(
-          bottom: BorderSide(color: Constants.borderColor, width: 1),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.teal.shade800, Colors.green.shade700],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: SafeArea(
         bottom: false,
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Row 1: Profile and Avatar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+              child: Row(
                 children: [
-                  Text(
-                    '$_greeting, $firstName 👋',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Constants.textDark,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Semoga harimu produktif!',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Constants.textMedium,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  if (_currentUser?.isKepalaMarketing == true) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Constants.primaryColor.withOpacity(0.06),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Constants.primaryColor.withOpacity(0.15)),
-                      ),
-                      child: const Text(
-                        'Kepala Marketing',
-                        style: TextStyle(
-                          color: Constants.primaryColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$_greeting, $firstName 👋',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 2),
+                        Text(
+                          userRole,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: 8),
+                  
+                  // Top-Right Notification Button with Badge
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      IconButton(
+                        onPressed: widget.onNavigateToNotifications,
+                        icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 26),
+                      ),
+                      if (_unreadCount > 0)
+                        Positioned(
+                          right: 6,
+                          top: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.redAccent,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 8,
+                              minHeight: 8,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  
+                  _buildPulsingAvatar(),
                 ],
               ),
             ),
-            const SizedBox(width: 16),
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: Constants.surfaceColor,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Constants.borderColor),
-              ),
-              child: Center(
-                child: Text(
-                  _getInitials(_currentUser?.name ?? 'U'),
-                  style: const TextStyle(
-                    color: Constants.primaryColor,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
+            
+            // Row 2: Clock & Date
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Column(
+                children: [
+                  Text(
+                    _timeString.isNotEmpty ? _timeString : '00:00:00',
+                    style: const TextStyle(
+                      fontSize: 38,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: -1,
+                    ),
                   ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _dateString.isNotEmpty ? _dateString : 'Hari ini',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildLiveStatusBadge(),
+                ],
+              ),
+            ),
+
+            // Row 3: Quick Attendance status overlay (Jam Masuk vs Jam Pulang)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // Jam Masuk
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.teal.shade50,
+                              shape: BoxShape.circle,
+                            ),
+                            child: ClipOval(
+                              child: fotoIn != null && fotoIn.isNotEmpty
+                                  ? Image.network(fotoIn, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.camera_alt_outlined, size: 18, color: Colors.teal.shade800))
+                                  : Icon(Icons.camera_alt_outlined, size: 18, color: Colors.teal.shade800),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Jam Masuk',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  jamIn,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: jamIn != '--:--' ? Colors.teal.shade800 : Colors.black38,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    Container(
+                      width: 1,
+                      height: 30,
+                      color: Colors.grey.shade200,
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+
+                    // Jam Pulang
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              shape: BoxShape.circle,
+                            ),
+                            child: ClipOval(
+                              child: fotoOut != null && fotoOut.isNotEmpty
+                                  ? Image.network(fotoOut, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.camera_alt_outlined, size: 18, color: Colors.redAccent))
+                                  : Icon(Icons.camera_alt_outlined, size: 18, color: Colors.redAccent),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Jam Pulang',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  jamOut,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: jamOut != '--:--' ? Colors.redAccent : Colors.black38,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -358,7 +663,65 @@ class HomeScreenState extends State<HomeScreen> {
             Expanded(child: _buildStatItem(Icons.trending_up_outlined, '$_completedThisMonth', 'Selesai Bulan Ini', Constants.financeColor)),
           ],
         ),
+        _buildAttendanceRecap(),
       ],
+    );
+  }
+
+  Widget _buildAttendanceRecap() {
+    final rekap = _dashboardData?['rekap'];
+    final hadir = rekap?['hadir']?.toString() ?? '0';
+    final sakit = rekap?['sakit']?.toString() ?? '0';
+    final izin = rekap?['izin']?.toString() ?? '0';
+    final cuti = rekap?['cuti']?.toString() ?? '0';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        const Text(
+          'Rekap Kehadiran Bulan Ini',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Constants.textDark),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: _buildRecapItem(Icons.check_circle_outline, hadir, 'Hadir', Colors.teal)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildRecapItem(Icons.healing_outlined, sakit, 'Sakit', Colors.amber)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildRecapItem(Icons.insert_drive_file_outlined, izin, 'Izin', Colors.blue)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildRecapItem(Icons.date_range_outlined, cuti, 'Cuti', Colors.redAccent)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecapItem(IconData icon, String value, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Constants.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Constants.borderColor),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Constants.textMedium),
+          ),
+        ],
+      ),
     );
   }
 
@@ -717,6 +1080,79 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildAnnouncementSection() {
+    if (_dashboardData == null || _dashboardData!['pengumuman'] == null) {
+      return const SizedBox.shrink();
+    }
+
+    final p = _dashboardData!['pengumuman'];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade800, Colors.indigo.shade900],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.indigo.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.campaign_rounded, color: Colors.amberAccent, size: 24),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Pengumuman Internal',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              Text(
+                p['created_at'] ?? '',
+                style: const TextStyle(fontSize: 10, color: Colors.white70),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            p['judul'] ?? '',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            p['isi'] ?? '',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.white70,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAlertCard({
     required String title,
     required String message,
@@ -741,14 +1177,22 @@ class HomeScreenState extends State<HomeScreen> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Constants.cardColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Constants.borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: stripeColor.withOpacity(0.12),
+            blurRadius: 10,
+            spreadRadius: 1,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           decoration: BoxDecoration(
-            border: Border(left: BorderSide(color: stripeColor, width: 4)),
+            border: Border(left: BorderSide(color: stripeColor, width: 6)),
           ),
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -773,8 +1217,8 @@ class HomeScreenState extends State<HomeScreen> {
                         Text(
                           title,
                           style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
                             color: Constants.textDark,
                             letterSpacing: -0.2,
                           ),
@@ -979,6 +1423,135 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildAttendanceMenu() {
+    final List<Map<String, dynamic>> menuItems = [
+      {
+        'title': 'Presensi',
+        'icon': Icons.fingerprint_rounded,
+        'color': Colors.teal,
+        'visible': true,
+        'action': () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => PresenceScreen(initialDashboardData: _dashboardData)),
+          );
+          _loadData(silent: true);
+        },
+      },
+      {
+        'title': 'Izin & Cuti',
+        'icon': Icons.date_range_rounded,
+        'color': Colors.indigo,
+        'visible': true,
+        'action': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const IzinCutiScreen()),
+        ),
+      },
+      {
+        'title': 'Lembur',
+        'icon': Icons.alarm_on_rounded,
+        'color': Colors.redAccent,
+        'visible': true,
+        'action': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LemburScreen()),
+        ),
+      },
+      {
+        'title': 'Koreksi Absen',
+        'icon': Icons.edit_calendar_rounded,
+        'color': Colors.purple,
+        'visible': true,
+        'action': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const IzinCutiScreen()),
+        ),
+      },
+      {
+        'title': 'Kunjungan Lapangan',
+        'icon': Icons.add_location_alt_rounded,
+        'color': Colors.blue,
+        'visible': _featureVisitTracking,
+        'action': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const KunjunganScreen()),
+        ),
+      },
+      {
+        'title': 'Aktivitas Harian',
+        'icon': Icons.assignment_outlined,
+        'color': Colors.orange,
+        'visible': _featureDailyActivity,
+        'action': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AktivitasScreen()),
+        ),
+      },
+    ];
+
+    final visibleItems = menuItems.where((item) => item['visible'] == true).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        const Text(
+          'Menu Presensi & Kehadiran',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Constants.textDark),
+        ),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.95,
+          ),
+          itemCount: visibleItems.length,
+          itemBuilder: (context, index) {
+            final item = visibleItems[index];
+            return GestureDetector(
+              onTap: item['action'] as VoidCallback,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Constants.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Constants.borderColor),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: (item['color'] as Color).withOpacity(0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(item['icon'] as IconData, color: item['color'] as Color, size: 24),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      item['title'] as String,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Constants.textDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'selesai':
@@ -1016,5 +1589,555 @@ class HomeScreenState extends State<HomeScreen> {
     if (diff.inHours > 0) return '${diff.inHours} jam lalu';
     if (diff.inMinutes > 0) return '${diff.inMinutes} menit lalu';
     return 'Baru saja';
+  }
+
+  Widget _buildPulsingAvatar() {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.18),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      child: Center(
+        child: Text(
+          _getInitials(_currentUser?.name ?? 'U'),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLiveStatusBadge() {
+    final p = _dashboardData?['presensi'];
+    final bool isWorking = p != null && p['jam_in'] != null && p['jam_out'] == null;
+    
+    if (!isWorking) return const SizedBox.shrink();
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.greenAccent.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.greenAccent.withOpacity(0.4), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.greenAccent,
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text(
+            'Sedang Bekerja',
+            style: TextStyle(
+              color: Colors.greenAccent,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _activeTab = 0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _activeTab == 0 ? Colors.teal : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: _activeTab == 0
+                        ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 2))]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Tugas & Proyek',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: _activeTab == 0 ? Colors.white : Colors.black54,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _activeTab = 1),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _activeTab == 1 ? Colors.teal : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: _activeTab == 1
+                        ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 2))]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Riwayat Presensi',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: _activeTab == 1 ? Colors.white : Colors.black54,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPresenceHistoryList() {
+    final List<dynamic> history = _dashboardData?['history'] ?? [];
+    if (history.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        alignment: Alignment.center,
+        child: const Text(
+          'Belum ada riwayat kehadiran bulan ini',
+          style: TextStyle(color: Constants.textMedium, fontSize: 13),
+        ),
+      );
+    }
+
+    return Column(
+      children: List.generate(history.length, (index) {
+        final item = history[index];
+        final String status = item['status']?.toString() ?? 'h';
+        final String tanggalStr = item['tanggal'] ?? '';
+        
+        DateTime? parsedDate = DateTime.tryParse(tanggalStr);
+        String dayName = 'MIN';
+        String dayNum = '01';
+        String formattedFullDate = tanggalStr;
+        if (parsedDate != null) {
+          final List<String> indoDays = ['MIN', 'SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB'];
+          dayName = indoDays[parsedDate.weekday % 7];
+          dayNum = parsedDate.day.toString().padLeft(2, '0');
+          final List<String> indoMonths = [
+            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+          ];
+          formattedFullDate = '${parsedDate.day} ${indoMonths[parsedDate.month - 1]} ${parsedDate.year}';
+        }
+
+        Color statusColor = Colors.teal;
+        Color statusBg = Colors.teal.shade50;
+        String statusLabel = 'Hadir';
+        if (status == 'i') {
+          statusColor = Colors.blue;
+          statusBg = Colors.blue.shade50;
+          statusLabel = 'Izin';
+        } else if (status == 's') {
+          statusColor = Colors.orange;
+          statusBg = Colors.orange.shade50;
+          statusLabel = 'Sakit';
+        } else if (status == 'c') {
+          statusColor = Colors.redAccent;
+          statusBg = Colors.red.shade50;
+          statusLabel = 'Cuti';
+        } else if (status == 'a') {
+          statusColor = Colors.grey;
+          statusBg = Colors.grey.shade100;
+          statusLabel = 'Alpa';
+        }
+
+        bool isLate = false;
+        String lateText = '';
+        if (status == 'h' && item['jam_in'] != null && item['jam_masuk'] != null) {
+          try {
+            final inParts = item['jam_in'].toString().split(':');
+            final masukParts = item['jam_masuk'].toString().split(':');
+            if (inParts.length >= 2 && masukParts.length >= 2) {
+              final inMin = int.parse(inParts[0]) * 60 + int.parse(inParts[1]);
+              final masukMin = int.parse(masukParts[0]) * 60 + int.parse(masukParts[1]);
+              if (inMin > masukMin) {
+                isLate = true;
+                final diff = inMin - masukMin;
+                lateText = 'Telat ${diff}m';
+              }
+            }
+          } catch (_) {}
+        }
+
+        return GestureDetector(
+          onTap: () => _showPresenceDetailDialog(item),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Constants.cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: statusColor.withOpacity(0.3)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: statusBg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        dayName,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
+                      ),
+                      Text(
+                        dayNum,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: statusColor, height: 1.1),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            formattedFullDate,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Constants.textDark),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: statusBg,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              item['nama_jam_kerja']?.toString() ?? 'Regular',
+                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: statusColor),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      if (status == 'h')
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${item['jam_in'] ?? '--:--'} - ${item['jam_out'] ?? '--:--'}',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54),
+                            ),
+                            if (isLate)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  lateText,
+                                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.redAccent),
+                                ),
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.teal.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Tepat Waktu',
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.teal),
+                                ),
+                              ),
+                          ],
+                        )
+                      else
+                        Text(
+                          item['keterangan'] ?? statusLabel,
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: statusColor),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  void _showPresenceDetailDialog(Map<String, dynamic> item) {
+    final String status = item['status']?.toString() ?? 'h';
+    final String shiftName = item['nama_jam_kerja']?.toString() ?? 'Shift Regular';
+    final String tgl = item['tanggal'] ?? '';
+    final String jamIn = item['jam_in'] ?? '--:--';
+    final String jamOut = item['jam_out'] ?? '--:--';
+    final String shiftIn = item['jam_masuk'] ?? '--:--';
+    final String shiftOut = item['jam_pulang'] ?? '--:--';
+    final String? fotoIn = item['foto_in'];
+    final String? fotoOut = item['foto_out'];
+
+    Color statusColor = Colors.teal;
+    String statusLabel = 'HADIR';
+    if (status == 'i') {
+      statusColor = Colors.blue;
+      statusLabel = 'IZIN';
+    } else if (status == 's') {
+      statusColor = Colors.orange;
+      statusLabel = 'SAKIT';
+    } else if (status == 'c') {
+      statusColor = Colors.redAccent;
+      statusLabel = 'CUTI';
+    } else if (status == 'a') {
+      statusColor = Colors.grey;
+      statusLabel = 'ALPA';
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Detail Presensi',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Constants.textDark),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: statusColor.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            shiftName,
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: statusColor),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              statusLabel,
+                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tanggal: $tgl',
+                        style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (status == 'h') ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            const Text(
+                              'Foto Masuk',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              height: 110,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: fotoIn != null && fotoIn.isNotEmpty
+                                    ? Image.network(
+                                        fotoIn,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                                      )
+                                    : const Icon(Icons.camera_alt_outlined, color: Colors.grey),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Jam: $jamIn',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Constants.textDark),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            const Text(
+                              'Foto Pulang',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              height: 110,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: fotoOut != null && fotoOut.isNotEmpty
+                                    ? Image.network(
+                                        fotoOut,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                                      )
+                                    : const Icon(Icons.camera_alt_outlined, color: Colors.grey),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Jam: $jamOut',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Constants.textDark),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, size: 16, color: Colors.black45),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Jadwal Jam Kerja Shift: $shiftIn - $shiftOut',
+                          style: const TextStyle(fontSize: 11, color: Colors.black54, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (status != 'h' && item['keterangan'] != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Alasan / Keterangan:',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item['keterangan'].toString(),
+                          style: const TextStyle(fontSize: 12, color: Constants.textDark, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade100,
+                    foregroundColor: Colors.grey.shade700,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Tutup Detail', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }
