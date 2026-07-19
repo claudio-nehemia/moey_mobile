@@ -9,6 +9,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/auth_service.dart';
+import '../services/security_service.dart';
 import '../utils/constant.dart';
 
 class PresenceScreen extends StatefulWidget {
@@ -245,6 +246,10 @@ class _PresenceScreenState extends State<PresenceScreen> {
   }
 
   Future<void> _submitPresence(String type) async {
+    if (await SecurityService.checkMockLocation(context)) {
+      return;
+    }
+
     if (_currentPosition == null) {
       await _determinePosition();
       if (_currentPosition == null) {

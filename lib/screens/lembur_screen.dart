@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../services/auth_service.dart';
+import '../services/security_service.dart';
 import '../utils/constant.dart';
 
 class LemburScreen extends StatefulWidget {
@@ -144,6 +145,9 @@ class _LemburScreenState extends State<LemburScreen> {
   }
 
   Future<void> _submitLemburAbsen(int lemburId, bool hasIn) async {
+    if (await SecurityService.checkMockLocation(context)) {
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       // Get location

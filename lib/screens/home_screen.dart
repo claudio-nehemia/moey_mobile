@@ -15,6 +15,7 @@ import 'izin_cuti_screen.dart';
 import 'lembur_screen.dart';
 import 'kunjungan_screen.dart';
 import 'aktivitas_screen.dart';
+import 'slip_gaji_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToNotifications;
@@ -1486,6 +1487,16 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
         'action': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const AktivitasScreen()),
+        ),
+      },
+      {
+        'title': 'Slip Gaji',
+        'icon': Icons.receipt_long_rounded,
+        'color': Colors.teal,
+        'visible': true,
+        'action': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const SlipGajiScreen()),
         ),
       },
     ];

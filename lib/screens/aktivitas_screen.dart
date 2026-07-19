@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../services/auth_service.dart';
+import '../services/security_service.dart';
 import '../utils/constant.dart';
 
 class AktivitasScreen extends StatefulWidget {
@@ -82,6 +83,9 @@ class _AktivitasScreenState extends State<AktivitasScreen> {
   }
 
   Future<void> _submitActivity() async {
+    if (await SecurityService.checkMockLocation(context)) {
+      return;
+    }
     if (_activityController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Laporan aktivitas kerja harus diisi.')),
