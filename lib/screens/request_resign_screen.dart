@@ -293,7 +293,7 @@ class _RequestResignScreenState extends State<RequestResignScreen> {
 
   Widget _buildInfoRow(String label, String value) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.between,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(fontSize: 12, color: Constants.textLight)),
         Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Constants.textDark)),

@@ -544,98 +544,121 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                     ),
                   ],
                 ),
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Jam Masuk
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: Colors.teal.shade50,
-                              shape: BoxShape.circle,
-                            ),
-                            child: ClipOval(
-                              child: fotoIn != null && fotoIn.isNotEmpty
-                                  ? Image.network(fotoIn, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.camera_alt_outlined, size: 18, color: Colors.teal.shade800))
-                                  : Icon(Icons.camera_alt_outlined, size: 18, color: Colors.teal.shade800),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Jam Masuk',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54),
+                    Row(
+                      children: [
+                        // Jam Masuk
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: Colors.teal.shade50,
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  jamIn,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: jamIn != '--:--' ? Colors.teal.shade800 : Colors.black38,
-                                  ),
+                                child: ClipOval(
+                                  child: fotoIn != null && fotoIn.isNotEmpty
+                                      ? Image.network(fotoIn, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.camera_alt_outlined, size: 18, color: Colors.teal.shade800))
+                                      : Icon(Icons.camera_alt_outlined, size: 18, color: Colors.teal.shade800),
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Jam Masuk',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      jamIn,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: jamIn != '--:--' ? Colors.teal.shade800 : Colors.black38,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                    
-                    Container(
-                      width: 1,
-                      height: 30,
-                      color: Colors.grey.shade200,
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
+                        ),
+                        
+                        Container(
+                          width: 1,
+                          height: 30,
+                          color: Colors.grey.shade200,
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
 
-                    // Jam Pulang
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              shape: BoxShape.circle,
-                            ),
-                            child: ClipOval(
-                              child: fotoOut != null && fotoOut.isNotEmpty
-                                  ? Image.network(fotoOut, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.camera_alt_outlined, size: 18, color: Colors.redAccent))
-                                  : Icon(Icons.camera_alt_outlined, size: 18, color: Colors.redAccent),
-                            ),
+                        // Jam Pulang
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: ClipOval(
+                                  child: fotoOut != null && fotoOut.isNotEmpty
+                                      ? Image.network(fotoOut, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.camera_alt_outlined, size: 18, color: Colors.redAccent))
+                                      : Icon(Icons.camera_alt_outlined, size: 18, color: Colors.redAccent),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Jam Pulang',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      jamOut,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: jamOut != '--:--' ? Colors.redAccent : Colors.black38,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Jam Pulang',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  jamOut,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: jamOut != '--:--' ? Colors.redAccent : Colors.black38,
-                                  ),
-                                ),
-                              ],
+                        ),
+                      ],
+                    ),
+                    if (_dashboardData?['jam_kerja'] != null) ...[
+                      const Divider(height: 20, color: Constants.borderColor),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.schedule_rounded, size: 14, color: Constants.primaryColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Jadwal Shift: ${_dashboardData!['jam_kerja']['nama_jam_kerja']} (${_dashboardData!['jam_kerja']['jam_masuk'] ?? '--:--'} - ${_dashboardData!['jam_kerja']['jam_pulang'] ?? '--:--'})',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Constants.textMedium,
                             ),
                           ),
                         ],
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
