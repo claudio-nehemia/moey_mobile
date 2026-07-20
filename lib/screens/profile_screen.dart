@@ -4,6 +4,8 @@ import '../services/auth_service.dart';
 import '../config/environment.dart';
 import '../utils/constant.dart';
 import 'login_screen.dart';
+import 'my_training_screen.dart';
+import 'request_resign_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -259,6 +261,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     margin: const EdgeInsets.all(16),
                   ),
+                );
+              },
+            ),
+            const Divider(height: 1, indent: 64, color: Constants.borderColor),
+            _buildMenuItem(
+              icon: Icons.school_outlined,
+              iconColor: Colors.pink,
+              title: 'Pelatihan Saya',
+              subtitle: 'Riwayat & sertifikasi pelatihan',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyTrainingScreen()),
+                );
+              },
+            ),
+            const Divider(height: 1, indent: 64, color: Constants.borderColor),
+            _buildMenuItem(
+              icon: Icons.exit_to_app_rounded,
+              iconColor: Colors.redAccent,
+              title: 'Pengajuan Resign',
+              subtitle: 'Formulir pengunduran diri',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RequestResignScreen()),
                 );
               },
             ),
