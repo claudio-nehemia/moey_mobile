@@ -411,6 +411,7 @@ class NotificationModel {
   static const String typeWorkplanRequest = 'workplan_request';
   static const String typeProjectManagementRequest =
       'project_management_request';
+  static const String typePengumuman = 'pengumuman';
 }
 
 class Order {

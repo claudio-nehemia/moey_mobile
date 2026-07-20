@@ -479,23 +479,73 @@ class _PresenceScreenState extends State<PresenceScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _isWithinGeofence ? Colors.teal.shade50 : Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _isWithinGeofence
-                      ? '✓ Anda berada di dalam radius kantor (${_distanceToOffice.toStringAsFixed(1)}m)'
-                      : '✗ Anda berada di luar radius kantor (${_distanceToOffice.toStringAsFixed(1)}m, batas: ${_getOfficeRadius().toStringAsFixed(0)}m)',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _isWithinGeofence ? Colors.teal.shade800 : Colors.red.shade800,
-                  ),
-                ),
+              Builder(
+                builder: (context) {
+                  final officeLatLng = _getOfficeLatLng();
+                  
+                  if (officeLatLng == null) {
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: Text(
+                        '⚠ Koordinat lokasi cabang belum dikonfigurasi di dashboard web.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber.shade900,
+                        ),
+                      ),
+                    );
+                  }
+
+                  if (_currentPosition == null) {
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Text(
+                        '⏳ Sedang mendeteksi koordinat GPS...',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade800,
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _isWithinGeofence ? Colors.teal.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _isWithinGeofence ? Colors.teal.shade200 : Colors.red.shade200),
+                    ),
+                    child: Text(
+                      _isWithinGeofence
+                          ? '✓ Anda berada di dalam radius kantor (${_distanceToOffice.toStringAsFixed(1)}m)'
+                          : '✗ Anda berada di luar radius kantor (${_distanceToOffice.toStringAsFixed(1)}m, batas: ${_getOfficeRadius().toStringAsFixed(0)}m)',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: _isWithinGeofence ? Colors.teal.shade800 : Colors.red.shade800,
+                      ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 20),
             ],

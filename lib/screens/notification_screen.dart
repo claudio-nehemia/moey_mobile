@@ -360,6 +360,8 @@ class NotificationScreenState extends State<NotificationScreen> {
         return Constants.approvalColor;
       case NotificationModel.typeProjectManagementRequest:
         return Constants.pmColor;
+      case NotificationModel.typePengumuman:
+        return Colors.purple;
       default:
         return Constants.konstruksiColor;
     }
@@ -395,6 +397,8 @@ class NotificationScreenState extends State<NotificationScreen> {
         return Icons.check_circle_outline;
       case NotificationModel.typeProjectManagementRequest:
         return Icons.account_tree_outlined;
+      case NotificationModel.typePengumuman:
+        return Icons.campaign_rounded;
       default:
         return Icons.notifications_outlined;
     }

@@ -49,7 +49,7 @@ class _MyTrainingScreenState extends State<MyTrainingScreen> {
   String _formatDate(String dateStr) {
     try {
       final date = DateTime.parse(dateStr);
-      return DateFormat('dd MMM yyyy', 'id_ID').format(date);
+      return DateFormat('dd MMM yyyy').format(date);
     } catch (_) {
       return dateStr;
     }

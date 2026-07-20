@@ -151,7 +151,7 @@ class _RequestResignScreenState extends State<RequestResignScreen> {
   String _formatDate(String dateStr) {
     try {
       final date = DateTime.parse(dateStr);
-      return DateFormat('dd MMMM yyyy', 'id_ID').format(date);
+      return DateFormat('dd MMMM yyyy').format(date);
     } catch (_) {
       return dateStr;
     }
@@ -363,7 +363,7 @@ class _RequestResignScreenState extends State<RequestResignScreen> {
                     Text(
                       _selectedDate == null
                           ? 'Pilih Tanggal (Min. H+30)'
-                          : DateFormat('dd MMMM yyyy', 'id_ID').format(_selectedDate!),
+                          : DateFormat('dd MMMM yyyy').format(_selectedDate!),
                       style: TextStyle(
                         fontSize: 13,
                         color: _selectedDate == null ? Constants.textLight : Constants.textDark,
