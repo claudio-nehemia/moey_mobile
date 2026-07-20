@@ -304,6 +304,15 @@ class _PresenceScreenState extends State<PresenceScreen> {
       print("DEBUG_PRESENCE: Status code = ${response.statusCode}");
       print("DEBUG_PRESENCE: Response body = ${response.body}");
 
+      if (response.statusCode != 200) {
+        print("=====================================================");
+        print("❌❌❌ PRESENCE API ERROR DETECTED ❌❌❌");
+        print("Request URL  : $uri");
+        print("Status Code  : ${response.statusCode}");
+        print("Response Body: ${response.body}");
+        print("=====================================================");
+      }
+
       final responseData = jsonDecode(response.body);
 
       setState(() => _isLoading = false);

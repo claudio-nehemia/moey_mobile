@@ -195,6 +195,15 @@ class _LemburScreenState extends State<LemburScreen> {
       print("DEBUG_LEMBUR: Status code = ${response.statusCode}");
       print("DEBUG_LEMBUR: Response body = ${response.body}");
 
+      if (response.statusCode != 200) {
+        print("=====================================================");
+        print("❌❌❌ OVERTIME API ERROR DETECTED ❌❌❌");
+        print("Request URL  : $uri");
+        print("Status Code  : ${response.statusCode}");
+        print("Response Body: ${response.body}");
+        print("=====================================================");
+      }
+
       final responseData = jsonDecode(response.body);
 
       setState(() => _isLoading = false);
