@@ -100,8 +100,13 @@ class _AttendanceTabScreenState extends State<AttendanceTabScreen> {
   @override
   Widget build(BuildContext context) {
     final p = _dashboardData?['presensi'];
-    final String jamIn = p != null && p['jam_in'] != null ? p['jam_in'] : '--:--';
-    final String jamOut = p != null && p['jam_out'] != null ? p['jam_out'] : '--:--';
+    final jk = _dashboardData?['jam_kerja'];
+    final String jamIn = p != null && p['jam_in'] != null 
+        ? p['jam_in'] 
+        : (jk != null && jk['jam_masuk'] != null ? jk['jam_masuk'] : '--:--');
+    final String jamOut = p != null && p['jam_out'] != null 
+        ? p['jam_out'] 
+        : (jk != null && jk['jam_pulang'] != null ? jk['jam_pulang'] : '--:--');
     
     final progress = _getWorkProgress();
     final percent = (progress * 100).toStringAsFixed(0);

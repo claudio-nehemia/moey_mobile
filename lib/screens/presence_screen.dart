@@ -36,6 +36,7 @@ class _PresenceScreenState extends State<PresenceScreen> {
 
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
+  int _selectedCameraIndex = 0;
   bool _isCameraInitialized = false;
   bool _isWithinGeofence = false;
   double _distanceToOffice = 0.0;
@@ -157,17 +158,39 @@ class _PresenceScreenState extends State<PresenceScreen> {
     }
   }
 
-  Future<void> _initializeCamera() async {
+  Future<void> _initializeCamera({int? cameraIndex}) async {
     try {
+      if (_cameraController != null) {
+        await _cameraController!.dispose();
+        _cameraController = null;
+        if (mounted) {
+          setState(() {
+            _isCameraInitialized = false;
+          });
+        }
+      }
+
       _cameras = await availableCameras();
       if (_cameras != null && _cameras!.isNotEmpty) {
-        final frontCam = _cameras!.firstWhere(
-          (camera) => camera.lensDirection == CameraLensDirection.front,
-          orElse: () => _cameras!.first,
-        );
+        CameraDescription selectedCam;
+        if (cameraIndex != null && cameraIndex >= 0 && cameraIndex < _cameras!.length) {
+          selectedCam = _cameras![cameraIndex];
+          _selectedCameraIndex = cameraIndex;
+        } else {
+          final frontCamIndex = _cameras!.indexWhere(
+            (camera) => camera.lensDirection == CameraLensDirection.front,
+          );
+          if (frontCamIndex != -1) {
+            selectedCam = _cameras![frontCamIndex];
+            _selectedCameraIndex = frontCamIndex;
+          } else {
+            selectedCam = _cameras!.first;
+            _selectedCameraIndex = 0;
+          }
+        }
 
         _cameraController = CameraController(
-          frontCam,
+          selectedCam,
           ResolutionPreset.medium,
           enableAudio: false,
         );
@@ -182,6 +205,12 @@ class _PresenceScreenState extends State<PresenceScreen> {
     } catch (e) {
       print("Error initializing camera: $e");
     }
+  }
+
+  Future<void> _switchCamera() async {
+    if (_cameras == null || _cameras!.length < 2) return;
+    int nextIndex = (_selectedCameraIndex + 1) % _cameras!.length;
+    await _initializeCamera(cameraIndex: nextIndex);
   }
 
   Future<void> _captureImage() async {
@@ -610,6 +639,22 @@ class _PresenceScreenState extends State<PresenceScreen> {
                                 ),
                               ),
                               _buildCameraOverlay(),
+                              if (_cameras != null && _cameras!.length > 1)
+                                Positioned(
+                                  top: 12,
+                                  right: 12,
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: CircleAvatar(
+                                      backgroundColor: Colors.black54,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.cameraswitch_rounded, color: Colors.white, size: 20),
+                                        onPressed: _switchCamera,
+                                        tooltip: 'Ganti Kamera (Depan / Belakang)',
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               Positioned(
                                 bottom: 12,
                                 child: FloatingActionButton(

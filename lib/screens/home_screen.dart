@@ -404,10 +404,18 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
     final firstName = _currentUser?.name.split(' ').first ?? 'User';
     final userRole = _currentUser?.roleName ?? 'Karyawan';
     
-    // Check if we have check-in/out times from _dashboardData
+    // Check if we have check-in/out times from _dashboardData, or fallback to global shift times
     final p = _dashboardData?['presensi'];
-    final String jamIn = p != null && p['jam_in'] != null ? p['jam_in'] : '--:--';
-    final String jamOut = p != null && p['jam_out'] != null ? p['jam_out'] : '--:--';
+    final jk = _dashboardData?['jam_kerja'];
+    final bool hasCheckedIn = p != null && p['jam_in'] != null;
+    final bool hasCheckedOut = p != null && p['jam_out'] != null;
+
+    final String jamIn = hasCheckedIn 
+        ? p['jam_in'] 
+        : (jk != null && jk['jam_masuk'] != null ? jk['jam_masuk'] : '--:--');
+    final String jamOut = hasCheckedOut 
+        ? p['jam_out'] 
+        : (jk != null && jk['jam_pulang'] != null ? jk['jam_pulang'] : '--:--');
     final String? fotoIn = p != null ? p['foto_in'] : null;
     final String? fotoOut = p != null ? p['foto_out'] : null;
 
@@ -581,7 +589,7 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
-                                        color: jamIn != '--:--' ? Colors.teal.shade800 : Colors.black38,
+                                        color: hasCheckedIn ? Colors.teal.shade800 : Colors.black45,
                                       ),
                                     ),
                                   ],
@@ -630,7 +638,7 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
-                                        color: jamOut != '--:--' ? Colors.redAccent : Colors.black38,
+                                        color: hasCheckedOut ? Colors.redAccent : Colors.black45,
                                       ),
                                     ),
                                   ],

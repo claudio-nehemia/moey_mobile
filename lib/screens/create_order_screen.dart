@@ -597,7 +597,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                   const SizedBox(height: 16),
                   ...List.generate(_selectedFiles.length, (index) {
                     final file = _selectedFiles[index];
-                    final fileName = file.path.split(Platform.isWindows ? '\\' : '/').last;
+                    final fileName = file.path.split(RegExp(r'[/\\]')).last;
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

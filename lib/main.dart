@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/login_screen.dart';
@@ -14,9 +15,15 @@ void main() async {
   // Load .env
   await dotenv.load(fileName: ".env");
 
-  // 🔥 Initialize Firebase & FCM
-  await Firebase.initializeApp();
-  await FCMService().initialize();
+  // 🔥 Initialize Firebase & FCM (Mobile platforms)
+  if (!kIsWeb) {
+    try {
+      await Firebase.initializeApp();
+      await FCMService().initialize();
+    } catch (e) {
+      print("Firebase initialization skipped or error: $e");
+    }
+  }
 
   // Set status bar style
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -101,7 +108,9 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (mounted) {
       if (user != null && token != null) {
-        await FCMService().setupAfterLogin();
+        if (!kIsWeb) {
+          await FCMService().setupAfterLogin();
+        }
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             pageBuilder: (_, __, ___) => const MainScreen(),
@@ -115,7 +124,9 @@ class _SplashScreenState extends State<SplashScreen>
         if (token != null) {
           final cachedUser = await _authService.getUser();
           if (cachedUser != null) {
-            await FCMService().setupAfterLogin();
+            if (!kIsWeb) {
+              await FCMService().setupAfterLogin();
+            }
             Navigator.of(context).pushReplacement(
               PageRouteBuilder(
                 pageBuilder: (_, __, ___) => const MainScreen(),

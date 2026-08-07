@@ -1,5 +1,6 @@
    import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart' as local_notif;
@@ -12,6 +13,7 @@ import 'auth_service.dart';
    /// HARUS di luar class dan di-annotate dengan @pragma
    @pragma('vm:entry-point')
    Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+     if (kIsWeb) return;
      // Initialize Firebase jika belum
      await Firebase.initializeApp();
      
@@ -55,8 +57,8 @@ import 'auth_service.dart';
      /// Call this in main() BEFORE runApp()
      /// ═══════════════════════════════════════════════════════════════
      Future<void> initialize() async {
-       if (_isInitialized) {
-         print('⚠️  [FCM] Already initialized');
+       if (_isInitialized || kIsWeb) {
+         print('⚠️  [FCM] Already initialized or Web platform skipped');
          return;
        }
 
@@ -115,6 +117,7 @@ import 'auth_service.dart';
      /// Call this after successful login to get & save FCM token
      /// ═══════════════════════════════════════════════════════════════
      Future<void> setupAfterLogin() async {
+       if (kIsWeb) return;
        try {
          print('🔐 [FCM] Setting up FCM after login...');
          
@@ -139,6 +142,7 @@ import 'auth_service.dart';
      /// For showing notifications when app is in foreground
      /// ═══════════════════════════════════════════════════════════════
      Future<void> _initializeLocalNotifications() async {
+       if (kIsWeb) return;
        // Android settings
        const local_notif.AndroidInitializationSettings androidSettings = 
            local_notif.AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -166,7 +170,7 @@ import 'auth_service.dart';
        );
 
        // Create Android notification channel
-       if (Platform.isAndroid) {
+       if (!kIsWeb && Platform.isAndroid) {
          final local_notif.AndroidNotificationChannel channel = local_notif.AndroidNotificationChannel(
            'moey_notifications', // ID (must match AndroidManifest.xml)
            'MOEY Notifications', // Name (displayed in settings)
