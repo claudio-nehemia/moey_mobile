@@ -34,7 +34,7 @@ import 'auth_service.dart';
      FCMService._internal();
 
      // Dependencies
-     final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+     FirebaseMessaging get _firebaseMessaging => FirebaseMessaging.instance;
      final local_notif.FlutterLocalNotificationsPlugin _localNotifications = 
          local_notif.FlutterLocalNotificationsPlugin();
      final NotificationService _notificationService = NotificationService();

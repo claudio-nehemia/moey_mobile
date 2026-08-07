@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../services/auth_service.dart';
 import '../services/fcm_service.dart';
@@ -43,7 +44,9 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _isLoading = false);
 
         if (response.success) {
-          await FCMService().setupAfterLogin();
+          if (!kIsWeb) {
+            await FCMService().setupAfterLogin();
+          }
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const MainScreen()),
           );
