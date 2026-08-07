@@ -1188,7 +1188,7 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Constants.textPrimary,
+                  color: Constants.textDark,
                   height: 1.3,
                 ),
               ),
