@@ -8,6 +8,7 @@ class User {
   final bool isKepalaMarketing;
   final String? createdAt;
   final String? updatedAt;
+  final String? avatar;
   final Map<String, dynamic>? nearestTask;
   final Map<String, dynamic>? overdueTask;
   final Map<String, dynamic>? nearestPayment;
@@ -22,6 +23,7 @@ class User {
     this.isKepalaMarketing = false,
     this.createdAt,
     this.updatedAt,
+    this.avatar,
     this.nearestTask,
     this.overdueTask,
     this.nearestPayment,
@@ -41,6 +43,7 @@ class User {
       isKepalaMarketing: json['is_kepala_marketing'] ?? false,
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
+      avatar: json['avatar'] ?? json['foto'],
       nearestTask: json['nearest_task'],
       overdueTask: json['overdue_task'],
       nearestPayment: json['nearest_payment'],
@@ -58,6 +61,7 @@ class User {
       'is_kepala_marketing': isKepalaMarketing,
       'created_at': createdAt,
       'updated_at': updatedAt,
+      'avatar': avatar,
       'nearest_task': nearestTask,
       'overdue_task': overdueTask,
       'nearest_payment': nearestPayment,
