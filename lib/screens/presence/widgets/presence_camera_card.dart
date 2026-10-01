@@ -1,29 +1,36 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class PresenceCameraCard extends StatelessWidget {
   final File? selfieFile;
+  final Uint8List? selfieBytes;
   final bool isCameraInitialized;
   final CameraController? cameraController;
   final List<CameraDescription>? cameras;
   final VoidCallback onRetakePhoto;
   final VoidCallback onSwitchCamera;
   final VoidCallback onCaptureImage;
+  final bool isCapturing;
 
   const PresenceCameraCard({
     super.key,
-    required this.selfieFile,
+    this.selfieFile,
+    this.selfieBytes,
     required this.isCameraInitialized,
     required this.cameraController,
     required this.cameras,
     required this.onRetakePhoto,
     required this.onSwitchCamera,
     required this.onCaptureImage,
+    this.isCapturing = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bool hasPhoto = selfieBytes != null || (!kIsWeb && selfieFile != null);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -43,7 +50,7 @@ class PresenceCameraCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.grey.shade300, width: 1.5),
           ),
-          child: selfieFile != null
+          child: hasPhoto
               ? _buildSelfiePreview()
               : isCameraInitialized && cameraController != null
                   ? _buildLiveCamera()
@@ -57,12 +64,29 @@ class PresenceCameraCard extends StatelessWidget {
   }
 
   Widget _buildSelfiePreview() {
+    Widget imageWidget;
+    if (selfieBytes != null) {
+      imageWidget = Image.memory(
+        selfieBytes!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildErrorPlaceholder(),
+      );
+    } else if (!kIsWeb && selfieFile != null) {
+      imageWidget = Image.file(
+        selfieFile!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildErrorPlaceholder(),
+      );
+    } else {
+      imageWidget = _buildErrorPlaceholder();
+    }
+
     return Stack(
       fit: StackFit.expand,
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          child: Image.file(selfieFile!, fit: BoxFit.cover),
+          child: imageWidget,
         ),
         Positioned(
           bottom: 12,
@@ -82,7 +106,40 @@ class PresenceCameraCard extends StatelessWidget {
     );
   }
 
+  Widget _buildErrorPlaceholder() {
+    return Container(
+      color: Colors.grey.shade900,
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.broken_image_rounded, color: Colors.white54, size: 40),
+            SizedBox(height: 8),
+            Text(
+              'Gagal memuat preview foto',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLiveCamera() {
+    final previewSize = cameraController!.value.previewSize;
+    double previewWidth = 1080;
+    double previewHeight = 1920;
+    if (previewSize != null) {
+      if (kIsWeb) {
+        previewWidth = previewSize.width;
+        previewHeight = previewSize.height;
+      } else {
+        // Native mobile portrait orientation
+        previewWidth = previewSize.height;
+        previewHeight = previewSize.width;
+      }
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Stack(
@@ -93,8 +150,8 @@ class PresenceCameraCard extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.cover,
               child: SizedBox(
-                width: cameraController!.value.previewSize?.height ?? 1080,
-                height: cameraController!.value.previewSize?.width ?? 1920,
+                width: previewWidth,
+                height: previewHeight,
                 child: CameraPreview(cameraController!),
               ),
             ),
@@ -125,8 +182,17 @@ class PresenceCameraCard extends StatelessWidget {
             child: FloatingActionButton(
               backgroundColor: Colors.white,
               foregroundColor: Colors.teal,
-              onPressed: onCaptureImage,
-              child: const Icon(Icons.camera_alt, size: 28),
+              onPressed: isCapturing ? null : onCaptureImage,
+              child: isCapturing
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.teal,
+                      ),
+                    )
+                  : const Icon(Icons.camera_alt, size: 28),
             ),
           ),
         ],
@@ -141,7 +207,7 @@ class PresenceCameraCard extends StatelessWidget {
           width: 160,
           height: 200,
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.white.withOpacity(0.6), width: 2),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 2),
             borderRadius: const BorderRadius.all(Radius.elliptical(80, 100)),
           ),
           child: Center(
@@ -150,7 +216,7 @@ class PresenceCameraCard extends StatelessWidget {
               height: 194,
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   width: 1,
                 ),
                 borderRadius: const BorderRadius.all(Radius.elliptical(77, 97)),

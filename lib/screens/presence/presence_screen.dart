@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -26,9 +27,11 @@ class _PresenceScreenState extends State<PresenceScreen> {
   final AuthService _authService = AuthService();
 
   bool _isLoading = false;
+  bool _isCapturing = false;
   String _statusMessage = 'Mendapatkan lokasi Anda...';
   Position? _currentPosition;
   File? _selfieFile;
+  Uint8List? _selfieBytes;
 
   Map<String, dynamic>? _dashboardData;
   bool _hasCheckedInToday = false;
@@ -208,18 +211,28 @@ class _PresenceScreenState extends State<PresenceScreen> {
   }
 
   Future<void> _captureImage() async {
-    if (_cameraController == null || !_isCameraInitialized) return;
+    if (_isCapturing || _cameraController == null || !_isCameraInitialized) return;
+    setState(() => _isCapturing = true);
+
     try {
       final file = await _cameraController!.takePicture();
+      final bytes = await file.readAsBytes();
       if (!mounted) return;
       setState(() {
-        _selfieFile = File(file.path);
+        _selfieBytes = bytes;
+        if (!kIsWeb) {
+          _selfieFile = File(file.path);
+        }
       });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal menangkap foto: $e')),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isCapturing = false);
+      }
     }
   }
 
@@ -242,7 +255,7 @@ class _PresenceScreenState extends State<PresenceScreen> {
       }
     }
 
-    if (type != 'istirahat' && _selfieFile == null) {
+    if (type != 'istirahat' && _selfieBytes == null && _selfieFile == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -275,14 +288,25 @@ class _PresenceScreenState extends State<PresenceScreen> {
       request.fields['lokasi'] =
           '${_currentPosition!.latitude},${_currentPosition!.longitude}';
 
-      if (type != 'istirahat' && _selfieFile != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'image',
-            _selfieFile!.path,
-            contentType: MediaType('image', 'jpeg'),
-          ),
-        );
+      if (type != 'istirahat' && (_selfieBytes != null || _selfieFile != null)) {
+        if (_selfieBytes != null) {
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'image',
+              _selfieBytes!,
+              filename: 'selfie_${DateTime.now().millisecondsSinceEpoch}.jpg',
+              contentType: MediaType('image', 'jpeg'),
+            ),
+          );
+        } else if (!kIsWeb && _selfieFile != null) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'image',
+              _selfieFile!.path,
+              contentType: MediaType('image', 'jpeg'),
+            ),
+          );
+        }
       }
 
       final streamedResponse = await request.send();
@@ -303,6 +327,7 @@ class _PresenceScreenState extends State<PresenceScreen> {
         );
         setState(() {
           _selfieFile = null;
+          _selfieBytes = null;
         });
         await _refreshDashboard();
       } else {
@@ -374,10 +399,15 @@ class _PresenceScreenState extends State<PresenceScreen> {
             ),
             PresenceCameraCard(
               selfieFile: _selfieFile,
+              selfieBytes: _selfieBytes,
+              isCapturing: _isCapturing,
               isCameraInitialized: _isCameraInitialized,
               cameraController: _cameraController,
               cameras: _cameras,
-              onRetakePhoto: () => setState(() => _selfieFile = null),
+              onRetakePhoto: () => setState(() {
+                _selfieFile = null;
+                _selfieBytes = null;
+              }),
               onSwitchCamera: _switchCamera,
               onCaptureImage: _captureImage,
             ),
