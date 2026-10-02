@@ -1,0 +1,119 @@
+name: CI/CD - Deploy Web & Build Android
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy-web:
+    name: Build & Deploy Flutter Web
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Setup .env File
+        run: |
+          if [ -n "${{ secrets.ENV_FILE }}" ]; then
+            echo "${{ secrets.ENV_FILE }}" > .env
+          elif [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            echo "BASE_URL=https://moeygroup.com/api" > .env
+          fi
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Flutter Web
+        run: flutter build web --release
+
+      - name: Validate Server Secrets
+        run: |
+          MISSING=""
+          if [ -z "${{ secrets.SERVER_HOST }}" ]; then MISSING="$MISSING SERVER_HOST"; fi
+          if [ -z "${{ secrets.SERVER_SSH_KEY }}" ]; then MISSING="$MISSING SERVER_SSH_KEY"; fi
+          
+          if [ -n "$MISSING" ]; then
+            echo "::error::Required GitHub Secrets are missing:$MISSING. Please configure them in Repository Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - name: Deploy to Server via SSH & Rsync
+        env:
+          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          HOST: ${{ secrets.SERVER_HOST }}
+          USER: ${{ secrets.SERVER_USER || 'root' }}
+          PORT: ${{ secrets.SERVER_PORT || '22' }}
+          TARGET_DIR: ${{ secrets.SERVER_TARGET_DIR || '/var/www/app.moeygroup.com' }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p $PORT -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          echo "🚀 Deploying build/web/ to $USER@$HOST:$TARGET_DIR..."
+          rsync -avz --delete -e "ssh -p $PORT -o StrictHostKeyChecking=no" build/web/ "$USER@$HOST:$TARGET_DIR/"
+
+          echo "🔒 Setting permissions on server..."
+          ssh -p $PORT -o StrictHostKeyChecking=no "$USER@$HOST" "chown -R www-data:www-data $TARGET_DIR 2>/dev/null || true; chmod -R 755 $TARGET_DIR"
+
+          echo "✅ Deployment completed successfully!"
+
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Setup .env File
+        run: |
+          if [ -n "${{ secrets.ENV_FILE }}" ]; then
+            echo "${{ secrets.ENV_FILE }}" > .env
+          elif [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            echo "BASE_URL=https://moeygroup.com/api" > .env
+          fi
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Android APK Release
+        run: flutter build apk --release
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moey-mobile-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
