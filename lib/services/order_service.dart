@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../utils/constant.dart';
 import 'auth_service.dart';
@@ -62,7 +63,7 @@ class OrderService {
       }
 
       // Add MOM Files if any
-      if (momFilePaths != null && momFilePaths.isNotEmpty) {
+      if (!kIsWeb && momFilePaths != null && momFilePaths.isNotEmpty) {
         for (int i = 0; i < momFilePaths.length; i++) {
           final path = momFilePaths[i];
           final file = File(path);

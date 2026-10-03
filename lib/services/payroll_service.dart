@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import './auth_service.dart';
@@ -115,7 +116,7 @@ class PayrollService {
       request.fields['tanggal_efektif'] = tanggalEfektif;
       request.fields['alasan'] = alasan;
 
-      if (filePath != null && filePath.isNotEmpty) {
+      if (!kIsWeb && filePath != null && filePath.isNotEmpty) {
         final ext = filePath.split('.').last.toLowerCase();
         MediaType mediaType;
         if (ext == 'pdf') {

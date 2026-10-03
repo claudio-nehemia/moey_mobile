@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
@@ -27,6 +28,7 @@ class _KunjunganScreenState extends State<KunjunganScreen> {
   final TextEditingController _clientController = TextEditingController();
   final TextEditingController _keteranganController = TextEditingController();
   File? _selfieFile;
+  Uint8List? _selfieBytes;
 
   @override
   void initState() {
@@ -74,8 +76,12 @@ class _KunjunganScreenState extends State<KunjunganScreen> {
         imageQuality: 80,
       );
       if (photo != null) {
+        final bytes = await photo.readAsBytes();
         setState(() {
-          _selfieFile = File(photo.path);
+          _selfieBytes = bytes;
+          if (!kIsWeb) {
+            _selfieFile = File(photo.path);
+          }
         });
       }
     } catch (e) {
@@ -93,7 +99,7 @@ class _KunjunganScreenState extends State<KunjunganScreen> {
       );
       return;
     }
-    if (_selfieFile == null) {
+    if (_selfieFile == null && _selfieBytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Wajib menyertakan foto selfie bukti kunjungan.')),
       );
@@ -118,13 +124,24 @@ class _KunjunganScreenState extends State<KunjunganScreen> {
       request.fields['lokasi'] = '${position.latitude},${position.longitude}';
       request.fields['tanggal_kunjungan'] = dateStr;
 
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'image',
-          _selfieFile!.path,
-          contentType: MediaType('image', 'jpeg'),
-        ),
-      );
+      if (_selfieBytes != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'image',
+            _selfieBytes!,
+            filename: 'kunjungan_${DateTime.now().millisecondsSinceEpoch}.jpg',
+            contentType: MediaType('image', 'jpeg'),
+          ),
+        );
+      } else if (!kIsWeb && _selfieFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'image',
+            _selfieFile!.path,
+            contentType: MediaType('image', 'jpeg'),
+          ),
+        );
+      }
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -144,6 +161,7 @@ class _KunjunganScreenState extends State<KunjunganScreen> {
         _keteranganController.clear();
         setState(() {
           _selfieFile = null;
+          _selfieBytes = null;
         });
         Navigator.pop(context);
         _loadVisitList();
@@ -227,19 +245,24 @@ class _KunjunganScreenState extends State<KunjunganScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.grey.shade300),
                     ),
-                    child: _selfieFile != null
+                    child: _selfieBytes != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.file(_selfieFile!, fit: BoxFit.cover),
+                            child: Image.memory(_selfieBytes!, fit: BoxFit.cover),
                           )
-                        : const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.camera_alt_outlined, size: 36, color: Colors.grey),
-                              SizedBox(height: 6),
-                              Text('Ambil Selfie Bukti Kunjungan', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
+                        : (!kIsWeb && _selfieFile != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.file(_selfieFile!, fit: BoxFit.cover),
+                              )
+                            : const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.camera_alt_outlined, size: 36, color: Colors.grey),
+                                  SizedBox(height: 6),
+                                  Text('Ambil Selfie Bukti Kunjungan', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                ],
+                              )),
                   ),
                 ),
                 const SizedBox(height: 20),

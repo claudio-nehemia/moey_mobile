@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -29,6 +30,8 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
   
   // Sakit specific
   File? _sidFile;
+  Uint8List? _sidBytes;
+  String? _sidFileName;
 
   // Koreksi specific
   final TextEditingController _jamInController = TextEditingController(text: '08:00');
@@ -128,8 +131,13 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
         imageQuality: 80,
       );
       if (photo != null) {
+        final bytes = await photo.readAsBytes();
         setState(() {
-          _sidFile = File(photo.path);
+          _sidBytes = bytes;
+          _sidFileName = photo.name;
+          if (!kIsWeb) {
+            _sidFile = File(photo.path);
+          }
         });
       }
     } catch (e) {
@@ -173,14 +181,25 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
       request.fields['sampai'] = "${_sampaiDate.year}-${_sampaiDate.month.toString().padLeft(2, '0')}-${_sampaiDate.day.toString().padLeft(2, '0')}";
       request.fields['keterangan'] = _keteranganController.text;
 
-      if (_jenisIzin == 's' && _sidFile != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'sid',
-            _sidFile!.path,
-            contentType: MediaType('image', 'jpeg'),
-          ),
-        );
+      if (_jenisIzin == 's' && (_sidBytes != null || _sidFile != null)) {
+        if (_sidBytes != null) {
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'sid',
+              _sidBytes!,
+              filename: _sidFileName ?? 'sid_${DateTime.now().millisecondsSinceEpoch}.jpg',
+              contentType: MediaType('image', 'jpeg'),
+            ),
+          );
+        } else if (!kIsWeb && _sidFile != null) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'sid',
+              _sidFile!.path,
+              contentType: MediaType('image', 'jpeg'),
+            ),
+          );
+        }
       }
 
       if (_jenisIzin == 'k') {
@@ -206,6 +225,8 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
         _keteranganController.clear();
         setState(() {
           _sidFile = null;
+          _sidBytes = null;
+          _sidFileName = null;
         });
         Navigator.pop(context); // Close the sheet/form dialog
         _loadIzinList();
@@ -440,19 +461,19 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
                       side: BorderSide(color: Colors.grey.shade300),
                     ),
                     icon: Icon(
-                      _sidFile != null ? Icons.check_circle_rounded : Icons.cloud_upload_outlined,
-                      color: _sidFile != null ? Colors.teal : Constants.primaryColor,
+                      (_sidBytes != null || _sidFile != null) ? Icons.check_circle_rounded : Icons.cloud_upload_outlined,
+                      color: (_sidBytes != null || _sidFile != null) ? Colors.teal : Constants.primaryColor,
                     ),
                     label: Text(
-                      _sidFile != null ? 'Surat Dokter Terlampir ✓' : 'Upload Surat Dokter (SID)',
+                      (_sidBytes != null || _sidFile != null) ? 'Surat Dokter Terlampir ✓' : 'Upload Surat Dokter (SID)',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: _sidFile != null ? Colors.teal : Constants.textDark,
+                        color: (_sidBytes != null || _sidFile != null) ? Colors.teal : Constants.textDark,
                       ),
                     ),
                   ),
-                  if (_sidFile != null) ...[
+                  if (_sidBytes != null || (!kIsWeb && _sidFile != null)) ...[
                     const SizedBox(height: 8),
                     Container(
                       height: 100,
@@ -462,7 +483,9 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.file(_sidFile!, fit: BoxFit.cover),
+                        child: _sidBytes != null
+                            ? Image.memory(_sidBytes!, fit: BoxFit.cover)
+                            : Image.file(_sidFile!, fit: BoxFit.cover),
                       ),
                     ),
                   ],

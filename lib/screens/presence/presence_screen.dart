@@ -289,20 +289,16 @@ class _PresenceScreenState extends State<PresenceScreen> {
           '${_currentPosition!.latitude},${_currentPosition!.longitude}';
 
       if (type != 'istirahat' && (_selfieBytes != null || _selfieFile != null)) {
-        if (_selfieBytes != null) {
+        Uint8List? uploadBytes = _selfieBytes;
+        if (uploadBytes == null && !kIsWeb && _selfieFile != null) {
+          uploadBytes = await _selfieFile!.readAsBytes();
+        }
+        if (uploadBytes != null) {
           request.files.add(
             http.MultipartFile.fromBytes(
               'image',
-              _selfieBytes!,
+              uploadBytes,
               filename: 'selfie_${DateTime.now().millisecondsSinceEpoch}.jpg',
-              contentType: MediaType('image', 'jpeg'),
-            ),
-          );
-        } else if (!kIsWeb && _selfieFile != null) {
-          request.files.add(
-            await http.MultipartFile.fromPath(
-              'image',
-              _selfieFile!.path,
               contentType: MediaType('image', 'jpeg'),
             ),
           );

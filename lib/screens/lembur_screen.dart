@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
@@ -181,10 +180,12 @@ class _LemburScreenState extends State<LemburScreen> {
       request.fields['status'] = !hasIn ? '1' : '2';
       request.fields['lokasi'] = '${position.latitude},${position.longitude}';
       
+      final photoBytes = await photo.readAsBytes();
       request.files.add(
-        await http.MultipartFile.fromPath(
+        http.MultipartFile.fromBytes(
           'image',
-          photo.path,
+          photoBytes,
+          filename: photo.name.isNotEmpty ? photo.name : 'lembur_${DateTime.now().millisecondsSinceEpoch}.jpg',
           contentType: MediaType('image', 'jpeg'),
         ),
       );
