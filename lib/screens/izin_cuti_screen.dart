@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
 import '../utils/constant.dart';
 
@@ -28,7 +30,11 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
   DateTime _sampaiDate = DateTime.now();
   final TextEditingController _keteranganController = TextEditingController();
   
-  // Sakit specific
+  // Lampiran (Sakit & Cuti: PDF / Gambar)
+  File? _attachmentFile;
+  Uint8List? _attachmentBytes;
+  String? _attachmentFileName;
+  bool _isAttachmentPdf = false;
   File? _sidFile;
   Uint8List? _sidBytes;
   String? _sidFileName;
@@ -122,26 +128,196 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
     }
   }
 
-  Future<void> _pickSidFile() async {
+  Future<void> _showAttachmentSourceDialog({StateSetter? setModalState}) async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Pilih Lampiran / Dokumen',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Constants.textDark),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Mendukung format gambar (JPG/PNG) atau dokumen (PDF)',
+                  style: TextStyle(fontSize: 12, color: Constants.textMedium),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.camera_alt_outlined, color: Colors.blue),
+                  ),
+                  title: const Text('Ambil Foto Kamera', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: const Text('Ambil foto langsung dokumen bukti', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await _pickFromCamera(setModalState: setModalState);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.photo_library_outlined, color: Colors.green),
+                  ),
+                  title: const Text('Pilih dari Galeri Foto', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: const Text('Pilih foto berkas dari galeri', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await _pickFromGallery(setModalState: setModalState);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.picture_as_pdf_outlined, color: Colors.red),
+                  ),
+                  title: const Text('Pilih Dokumen PDF / Berkas', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: const Text('Pilih file surat/dokumen PDF', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await _pickDocumentFile(setModalState: setModalState);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickFromCamera({StateSetter? setModalState}) async {
     try {
       final XFile? photo = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1000,
-        maxHeight: 1000,
+        source: ImageSource.camera,
+        maxWidth: 1200,
+        maxHeight: 1200,
         imageQuality: 80,
       );
       if (photo != null) {
         final bytes = await photo.readAsBytes();
+        final file = !kIsWeb ? File(photo.path) : null;
+        if (setModalState != null) {
+          setModalState(() {
+            _attachmentBytes = bytes;
+            _attachmentFileName = photo.name;
+            _attachmentFile = file;
+            _isAttachmentPdf = false;
+            _sidBytes = bytes;
+            _sidFileName = photo.name;
+            _sidFile = file;
+          });
+        }
         setState(() {
+          _attachmentBytes = bytes;
+          _attachmentFileName = photo.name;
+          _attachmentFile = file;
+          _isAttachmentPdf = false;
           _sidBytes = bytes;
           _sidFileName = photo.name;
-          if (!kIsWeb) {
-            _sidFile = File(photo.path);
-          }
+          _sidFile = file;
         });
       }
     } catch (e) {
-      print("Error picking SID: $e");
+      debugPrint("Error picking camera: $e");
+    }
+  }
+
+  Future<void> _pickFromGallery({StateSetter? setModalState}) async {
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 80,
+      );
+      if (photo != null) {
+        final bytes = await photo.readAsBytes();
+        final file = !kIsWeb ? File(photo.path) : null;
+        if (setModalState != null) {
+          setModalState(() {
+            _attachmentBytes = bytes;
+            _attachmentFileName = photo.name;
+            _attachmentFile = file;
+            _isAttachmentPdf = false;
+            _sidBytes = bytes;
+            _sidFileName = photo.name;
+            _sidFile = file;
+          });
+        }
+        setState(() {
+          _attachmentBytes = bytes;
+          _attachmentFileName = photo.name;
+          _attachmentFile = file;
+          _isAttachmentPdf = false;
+          _sidBytes = bytes;
+          _sidFileName = photo.name;
+          _sidFile = file;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error picking gallery: $e");
+    }
+  }
+
+  Future<void> _pickDocumentFile({StateSetter? setModalState}) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+        withData: true,
+      );
+      if (result != null && result.files.isNotEmpty) {
+        final fileItem = result.files.single;
+        final bool isPdf = (fileItem.extension?.toLowerCase() == 'pdf') || fileItem.name.toLowerCase().endsWith('.pdf');
+        final file = (!kIsWeb && fileItem.path != null) ? File(fileItem.path!) : null;
+
+        if (setModalState != null) {
+          setModalState(() {
+            _attachmentBytes = fileItem.bytes;
+            _attachmentFileName = fileItem.name;
+            _attachmentFile = file;
+            _isAttachmentPdf = isPdf;
+            _sidBytes = fileItem.bytes;
+            _sidFileName = fileItem.name;
+            _sidFile = file;
+          });
+        }
+        setState(() {
+          _attachmentBytes = fileItem.bytes;
+          _attachmentFileName = fileItem.name;
+          _attachmentFile = file;
+          _isAttachmentPdf = isPdf;
+          _sidBytes = fileItem.bytes;
+          _sidFileName = fileItem.name;
+          _sidFile = file;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error picking file: $e");
     }
   }
 
@@ -181,24 +357,58 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
       request.fields['sampai'] = "${_sampaiDate.year}-${_sampaiDate.month.toString().padLeft(2, '0')}-${_sampaiDate.day.toString().padLeft(2, '0')}";
       request.fields['keterangan'] = _keteranganController.text;
 
-      if (_jenisIzin == 's' && (_sidBytes != null || _sidFile != null)) {
-        if (_sidBytes != null) {
+      if (_jenisIzin == 'c') {
+        request.fields['kode_cuti'] = 'C01';
+      }
+
+      if ((_jenisIzin == 's' || _jenisIzin == 'c') &&
+          (_attachmentBytes != null || _attachmentFile != null || _sidBytes != null || _sidFile != null)) {
+        final bytes = _attachmentBytes ?? _sidBytes;
+        final file = _attachmentFile ?? _sidFile;
+        final name = _attachmentFileName ?? _sidFileName ?? 'lampiran_${DateTime.now().millisecondsSinceEpoch}.${_isAttachmentPdf ? "pdf" : "jpg"}';
+        final isPdf = _isAttachmentPdf || name.toLowerCase().endsWith('.pdf');
+        final mediaType = isPdf
+            ? MediaType('application', 'pdf')
+            : MediaType('image', name.toLowerCase().endsWith('.png') ? 'png' : 'jpeg');
+
+        final fieldName = _jenisIzin == 'c' ? 'doc_cuti' : 'sid';
+
+        if (bytes != null) {
           request.files.add(
             http.MultipartFile.fromBytes(
-              'sid',
-              _sidBytes!,
-              filename: _sidFileName ?? 'sid_${DateTime.now().millisecondsSinceEpoch}.jpg',
-              contentType: MediaType('image', 'jpeg'),
+              fieldName,
+              bytes,
+              filename: name,
+              contentType: mediaType,
             ),
           );
-        } else if (!kIsWeb && _sidFile != null) {
+          if (_jenisIzin == 'c') {
+            request.files.add(
+              http.MultipartFile.fromBytes(
+                'lampiran',
+                bytes,
+                filename: name,
+                contentType: mediaType,
+              ),
+            );
+          }
+        } else if (!kIsWeb && file != null) {
           request.files.add(
             await http.MultipartFile.fromPath(
-              'sid',
-              _sidFile!.path,
-              contentType: MediaType('image', 'jpeg'),
+              fieldName,
+              file.path,
+              contentType: mediaType,
             ),
           );
+          if (_jenisIzin == 'c') {
+            request.files.add(
+              await http.MultipartFile.fromPath(
+                'lampiran',
+                file.path,
+                contentType: mediaType,
+              ),
+            );
+          }
         }
       }
 
@@ -224,6 +434,10 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
         );
         _keteranganController.clear();
         setState(() {
+          _attachmentFile = null;
+          _attachmentBytes = null;
+          _attachmentFileName = null;
+          _isAttachmentPdf = false;
           _sidFile = null;
           _sidBytes = null;
           _sidFileName = null;
@@ -307,6 +521,185 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
     }
+  }
+
+  Widget _buildAttachmentPickerSection(StateSetter setModalState) {
+    final bool hasFile = _attachmentBytes != null ||
+        _attachmentFile != null ||
+        _sidBytes != null ||
+        _sidFile != null;
+    final String currentFileName = _attachmentFileName ?? _sidFileName ?? 'Lampiran';
+    final bool isPdf = _isAttachmentPdf || currentFileName.toLowerCase().endsWith('.pdf');
+    final String sectionTitle = _jenisIzin == 's'
+        ? 'Surat Keterangan Dokter / Bukti Sakit'
+        : 'Dokumen / Lampiran Pendukung Cuti';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _jenisIzin == 's' ? Icons.medical_services_outlined : Icons.attach_file_rounded,
+                size: 18,
+                color: Constants.primaryColor,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  sectionTitle,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Constants.textDark,
+                  ),
+                ),
+              ),
+              Text(
+                '(Opsional)',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (hasFile) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: isPdf ? Colors.red.shade50 : Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    alignment: Alignment.center,
+                    child: isPdf
+                        ? const Icon(Icons.picture_as_pdf, color: Colors.red, size: 26)
+                        : (_attachmentBytes != null
+                            ? Image.memory(
+                                _attachmentBytes!,
+                                width: 44,
+                                height: 44,
+                                fit: BoxFit.cover,
+                              )
+                            : (_attachmentFile != null && !kIsWeb
+                                ? Image.file(
+                                    _attachmentFile!,
+                                    width: 44,
+                                    height: 44,
+                                    fit: BoxFit.cover,
+                                  )
+                                : const Icon(Icons.image, color: Colors.blue, size: 26))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currentFileName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Constants.textDark,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isPdf ? 'Berkas PDF' : 'Berkas Gambar',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isPdf ? Colors.red.shade700 : Colors.blue.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.redAccent, size: 20),
+                    tooltip: 'Hapus Berkas',
+                    onPressed: () {
+                      setModalState(() {
+                        _attachmentFile = null;
+                        _attachmentBytes = null;
+                        _attachmentFileName = null;
+                        _isAttachmentPdf = false;
+                        _sidFile = null;
+                        _sidBytes = null;
+                        _sidFileName = null;
+                      });
+                      setState(() {
+                        _attachmentFile = null;
+                        _attachmentBytes = null;
+                        _attachmentFileName = null;
+                        _isAttachmentPdf = false;
+                        _sidFile = null;
+                        _sidBytes = null;
+                        _sidFileName = null;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            InkWell(
+              onTap: () => _showAttachmentSourceDialog(setModalState: setModalState),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Constants.primaryColor.withOpacity(0.4),
+                    style: BorderStyle.solid,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.upload_file_rounded, color: Constants.primaryColor, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Pilih Berkas (PDF / Foto)',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Constants.primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Format didukung: PDF, JPG, PNG (Maks. 10MB)',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   void _showFormDialog() {
@@ -448,47 +841,9 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Sakit Attachment Field
-                if (_jenisIzin == 's') ...[
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      await _pickSidFile();
-                      setModalState(() {});
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      side: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    icon: Icon(
-                      (_sidBytes != null || _sidFile != null) ? Icons.check_circle_rounded : Icons.cloud_upload_outlined,
-                      color: (_sidBytes != null || _sidFile != null) ? Colors.teal : Constants.primaryColor,
-                    ),
-                    label: Text(
-                      (_sidBytes != null || _sidFile != null) ? 'Surat Dokter Terlampir ✓' : 'Upload Surat Dokter (SID)',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: (_sidBytes != null || _sidFile != null) ? Colors.teal : Constants.textDark,
-                      ),
-                    ),
-                  ),
-                  if (_sidBytes != null || (!kIsWeb && _sidFile != null)) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 100,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: _sidBytes != null
-                            ? Image.memory(_sidBytes!, fit: BoxFit.cover)
-                            : Image.file(_sidFile!, fit: BoxFit.cover),
-                      ),
-                    ),
-                  ],
+                // Attachment Field (Sakit & Cuti: PDF / Gambar)
+                if (_jenisIzin == 's' || _jenisIzin == 'c') ...[
+                  _buildAttachmentPickerSection(setModalState),
                   const SizedBox(height: 16),
                 ],
 
@@ -653,6 +1008,66 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
                                 item['keterangan'] ?? '',
                                 style: const TextStyle(fontSize: 12, color: Constants.textMedium),
                               ),
+                              if (item['doc_url'] != null || item['doc_sid_url'] != null) ...[
+                                Builder(
+                                  builder: (context) {
+                                    final String docUrl = (item['doc_url'] ?? item['doc_sid_url']).toString();
+                                    if (docUrl.trim().isEmpty) return const SizedBox.shrink();
+                                    final bool isPdf = docUrl.toLowerCase().contains('.pdf');
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8.0),
+                                      child: InkWell(
+                                        onTap: () async {
+                                          final uri = Uri.parse(docUrl);
+                                          if (await canLaunchUrl(uri)) {
+                                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                          } else {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Tidak dapat membuka lampiran.')),
+                                            );
+                                          }
+                                        },
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: isPdf ? Colors.red.shade50 : Colors.blue.shade50,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: isPdf ? Colors.red.shade200 : Colors.blue.shade200,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                isPdf ? Icons.picture_as_pdf_rounded : Icons.image_rounded,
+                                                size: 16,
+                                                color: isPdf ? Colors.red : Colors.blue.shade700,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                isPdf ? 'Lihat Lampiran PDF' : 'Lihat Lampiran Foto',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isPdf ? Colors.red.shade900 : Colors.blue.shade800,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Icon(
+                                                Icons.open_in_new,
+                                                size: 12,
+                                                color: isPdf ? Colors.red.shade900 : Colors.blue.shade800,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                               if (item['status'] == 0 || item['status'] == '0') ...[
                                 const SizedBox(height: 12),
                                 Align(
