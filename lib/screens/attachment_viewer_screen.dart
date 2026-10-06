@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/constant.dart';
+import 'widgets/pdf_viewer_platform_stub.dart'
+    if (dart.library.html) 'widgets/pdf_viewer_platform_web.dart'
+    if (dart.library.io) 'widgets/pdf_viewer_platform_mobile.dart';
 
 class AttachmentViewerScreen extends StatefulWidget {
   final String url;
@@ -21,23 +23,10 @@ class AttachmentViewerScreen extends StatefulWidget {
 class _AttachmentViewerScreenState extends State<AttachmentViewerScreen> {
   bool _isLoading = true;
   String? _errorMessage;
-  late final PdfViewerController _pdfViewerController;
 
   bool get _isPdf {
     final lower = widget.url.toLowerCase();
     return lower.contains('.pdf');
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _pdfViewerController = PdfViewerController();
-  }
-
-  @override
-  void dispose() {
-    _pdfViewerController.dispose();
-    super.dispose();
   }
 
   Future<void> _openExternal() async {
@@ -90,20 +79,23 @@ class _AttachmentViewerScreenState extends State<AttachmentViewerScreen> {
   Widget _buildPdfView() {
     return Stack(
       children: [
-        SfPdfViewer.network(
-          widget.url,
-          controller: _pdfViewerController,
-          onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-            setState(() {
-              _isLoading = false;
-              _errorMessage = null;
-            });
+        buildPlatformPdfViewer(
+          url: widget.url,
+          onLoaded: () {
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                _errorMessage = null;
+              });
+            }
           },
-          onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
-            setState(() {
-              _isLoading = false;
-              _errorMessage = details.description;
-            });
+          onFailed: (error) {
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                _errorMessage = error;
+              });
+            }
           },
         ),
         if (_isLoading)
