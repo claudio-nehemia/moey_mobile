@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -42,13 +43,13 @@ class _AttachmentViewerScreenState extends State<AttachmentViewerScreen> {
   Future<void> _openExternal() async {
     try {
       final uri = Uri.parse(widget.url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (kIsWeb) {
+        await launchUrl(uri, webOnlyWindowName: '_blank');
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tidak dapat membuka di aplikasi eksternal.')),
-          );
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          await launchUrl(uri, mode: LaunchMode.platformDefault);
         }
       }
     } catch (e) {
@@ -75,7 +76,7 @@ class _AttachmentViewerScreenState extends State<AttachmentViewerScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.open_in_browser_rounded),
-            tooltip: 'Buka di Browser / Aplikasi Luar',
+            tooltip: kIsWeb ? 'Buka di Tab Baru' : 'Buka di Browser / Aplikasi Luar',
             onPressed: _openExternal,
           ),
         ],
@@ -146,7 +147,7 @@ class _AttachmentViewerScreenState extends State<AttachmentViewerScreen> {
                       foregroundColor: Colors.white,
                     ),
                     icon: const Icon(Icons.open_in_browser, size: 16),
-                    label: const Text('Buka via Browser HP'),
+                    label: const Text(kIsWeb ? 'Buka di Tab Baru' : 'Buka via Browser / Aplikasi Luar'),
                   ),
                 ],
               ),
@@ -206,7 +207,7 @@ class _AttachmentViewerScreenState extends State<AttachmentViewerScreen> {
                         foregroundColor: Colors.white,
                       ),
                       icon: const Icon(Icons.open_in_browser, size: 16),
-                      label: const Text('Buka via Browser HP'),
+                      label: const Text(kIsWeb ? 'Buka di Tab Baru' : 'Buka via Browser / Aplikasi Luar'),
                     ),
                   ],
                 ),
