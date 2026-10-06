@@ -62,6 +62,7 @@ dependencies:
   flutter_map: ^6.1.0
   latlong2: ^0.9.0
   intl: ^0.20.3
+  syncfusion_flutter_pdfviewer: ^33.2.13
 
 dev_dependencies:
   flutter_test:

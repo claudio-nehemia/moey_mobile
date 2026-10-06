@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'attachment_viewer_screen.dart';
 import '../services/auth_service.dart';
 import '../utils/constant.dart';
 
@@ -1051,15 +1051,16 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
                                     return Padding(
                                       padding: const EdgeInsets.only(top: 8.0),
                                       child: InkWell(
-                                        onTap: () async {
-                                          final uri = Uri.parse(docUrl);
-                                          if (await canLaunchUrl(uri)) {
-                                            await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                          } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Tidak dapat membuka lampiran.')),
-                                            );
-                                          }
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => AttachmentViewerScreen(
+                                                url: docUrl,
+                                                title: 'Lampiran $typeLabel',
+                                              ),
+                                            ),
+                                          );
                                         },
                                         borderRadius: BorderRadius.circular(8),
                                         child: Container(
