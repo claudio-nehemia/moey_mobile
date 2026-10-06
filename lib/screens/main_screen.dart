@@ -36,17 +36,29 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _loadUser() async {
     try {
-      final user = await _authService.getCurrentUser();
       final token = await _authService.getToken();
-
-      if (user == null || token == null) {
+      if (token == null) {
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => LoginScreen()),
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
             (route) => false,
           );
         }
         return;
+      }
+
+      User? user = await _authService.getCurrentUser();
+      user ??= await _authService.getUser();
+
+      if (user == null) {
+        final freshToken = await _authService.getToken();
+        if (freshToken == null && mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (route) => false,
+          );
+          return;
+        }
       }
 
       if (mounted) {

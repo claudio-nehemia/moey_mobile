@@ -75,6 +75,31 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
   void initState() {
     super.initState();
     _loadIzinList();
+    _retrieveLostData();
+  }
+
+  Future<void> _retrieveLostData() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    try {
+      final LostDataResponse response = await _picker.retrieveLostData();
+      if (response.isEmpty) return;
+      if (response.file != null) {
+        final photo = response.file!;
+        final bytes = await photo.readAsBytes();
+        final file = File(photo.path);
+        setState(() {
+          _attachmentBytes = bytes;
+          _attachmentFileName = photo.name;
+          _attachmentFile = file;
+          _isAttachmentPdf = false;
+          _sidBytes = bytes;
+          _sidFileName = photo.name;
+          _sidFile = file;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error retrieving lost image picker data: $e");
+    }
   }
 
   Future<void> _loadIzinList() async {
@@ -361,8 +386,7 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
         request.fields['kode_cuti'] = 'C01';
       }
 
-      if ((_jenisIzin == 's' || _jenisIzin == 'c') &&
-          (_attachmentBytes != null || _attachmentFile != null || _sidBytes != null || _sidFile != null)) {
+      if (_attachmentBytes != null || _attachmentFile != null || _sidBytes != null || _sidFile != null) {
         final bytes = _attachmentBytes ?? _sidBytes;
         final file = _attachmentFile ?? _sidFile;
         final name = _attachmentFileName ?? _sidFileName ?? 'lampiran_${DateTime.now().millisecondsSinceEpoch}.${_isAttachmentPdf ? "pdf" : "jpg"}';
@@ -371,7 +395,13 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
             ? MediaType('application', 'pdf')
             : MediaType('image', name.toLowerCase().endsWith('.png') ? 'png' : 'jpeg');
 
-        final fieldName = _jenisIzin == 'c' ? 'doc_cuti' : 'sid';
+        final String fieldName = switch (_jenisIzin) {
+          'c' => 'doc_cuti',
+          's' => 'sid',
+          'd' => 'doc_dinas',
+          'k' => 'doc_koreksi',
+          _ => 'doc_izin',
+        };
 
         if (bytes != null) {
           request.files.add(
@@ -382,16 +412,14 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
               contentType: mediaType,
             ),
           );
-          if (_jenisIzin == 'c') {
-            request.files.add(
-              http.MultipartFile.fromBytes(
-                'lampiran',
-                bytes,
-                filename: name,
-                contentType: mediaType,
-              ),
-            );
-          }
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'lampiran',
+              bytes,
+              filename: name,
+              contentType: mediaType,
+            ),
+          );
         } else if (!kIsWeb && file != null) {
           request.files.add(
             await http.MultipartFile.fromPath(
@@ -400,15 +428,13 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
               contentType: mediaType,
             ),
           );
-          if (_jenisIzin == 'c') {
-            request.files.add(
-              await http.MultipartFile.fromPath(
-                'lampiran',
-                file.path,
-                contentType: mediaType,
-              ),
-            );
-          }
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'lampiran',
+              file.path,
+              contentType: mediaType,
+            ),
+          );
         }
       }
 
@@ -530,9 +556,19 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
         _sidFile != null;
     final String currentFileName = _attachmentFileName ?? _sidFileName ?? 'Lampiran';
     final bool isPdf = _isAttachmentPdf || currentFileName.toLowerCase().endsWith('.pdf');
-    final String sectionTitle = _jenisIzin == 's'
-        ? 'Surat Keterangan Dokter / Bukti Sakit'
-        : 'Dokumen / Lampiran Pendukung Cuti';
+    final String sectionTitle = switch (_jenisIzin) {
+      's' => 'Surat Keterangan Dokter / Bukti Sakit',
+      'c' => 'Dokumen / Lampiran Pendukung Cuti',
+      'd' => 'Surat Tugas / Bukti Dinas Luar',
+      'k' => 'Bukti Koreksi Absen (Foto / Dokumen)',
+      _ => 'Lampiran / Dokumen Pendukung Izin',
+    };
+    final IconData sectionIcon = switch (_jenisIzin) {
+      's' => Icons.medical_services_outlined,
+      'd' => Icons.business_center_outlined,
+      'k' => Icons.access_time_rounded,
+      _ => Icons.attach_file_rounded,
+    };
 
     return Container(
       decoration: BoxDecoration(
@@ -547,7 +583,7 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
           Row(
             children: [
               Icon(
-                _jenisIzin == 's' ? Icons.medical_services_outlined : Icons.attach_file_rounded,
+                sectionIcon,
                 size: 18,
                 color: Constants.primaryColor,
               ),
@@ -841,11 +877,9 @@ class _IzinCutiScreenState extends State<IzinCutiScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Attachment Field (Sakit & Cuti: PDF / Gambar)
-                if (_jenisIzin == 's' || _jenisIzin == 'c') ...[
-                  _buildAttachmentPickerSection(setModalState),
-                  const SizedBox(height: 16),
-                ],
+                // Attachment Field (Semua Jenis Izin: PDF / Gambar)
+                _buildAttachmentPickerSection(setModalState),
+                const SizedBox(height: 16),
 
                 // Koreksi Fields
                 if (_jenisIzin == 'k') ...[
