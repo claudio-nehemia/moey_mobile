@@ -288,6 +288,10 @@ class _PresenceScreenState extends State<PresenceScreen> {
       request.fields['lokasi'] =
           '${_currentPosition!.latitude},${_currentPosition!.longitude}';
 
+      if (type == 'istirahat') {
+        request.fields['status'] = _isBreakActive ? '2' : '1';
+      }
+
       if (type != 'istirahat' && (_selfieBytes != null || _selfieFile != null)) {
         Uint8List? uploadBytes = _selfieBytes;
         if (uploadBytes == null && !kIsWeb && _selfieFile != null) {
