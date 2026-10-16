@@ -15,6 +15,7 @@ import '../lembur_screen.dart';
 import '../login_screen.dart';
 import '../presence_screen.dart';
 import '../slip_gaji_screen.dart';
+import '../face_registration_screen.dart';
 import 'widgets/birthday_dialog.dart';
 import 'widgets/home_alerts.dart';
 import 'widgets/home_announcements.dart';
@@ -384,7 +385,21 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                             },
                           ),
                           const SizedBox(height: 16),
-                          HomeAlerts(currentUser: _currentUser),
+                          HomeAlerts(
+                            currentUser: _currentUser,
+                            dashboardData: _dashboardData,
+                            onRegisterFace: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const FaceRegistrationScreen(),
+                                ),
+                              );
+                              if (result == true || result != null) {
+                                _loadData(silent: true);
+                              }
+                            },
+                          ),
                           HomeAnnouncements(dashboardData: _dashboardData),
                           HomeSummaryCards(
                             unreadCount: _unreadCount,

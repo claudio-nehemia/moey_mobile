@@ -6,6 +6,7 @@ import '../utils/constant.dart';
 import 'login_screen.dart';
 import 'my_training_screen.dart';
 import 'request_resign_screen.dart';
+import 'face_registration_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -273,6 +274,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     margin: const EdgeInsets.all(16),
                   ),
+                );
+              },
+            ),
+            const Divider(height: 1, indent: 64, color: Constants.borderColor),
+            _buildMenuItem(
+              icon: Icons.face_retouching_natural_rounded,
+              iconColor: Constants.primaryColor,
+              title: 'Pendaftaran Wajah',
+              subtitle: 'Kelola foto wajah untuk absensi presensi',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FaceRegistrationScreen()),
                 );
               },
             ),

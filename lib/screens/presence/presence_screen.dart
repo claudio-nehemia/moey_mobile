@@ -14,6 +14,7 @@ import 'widgets/presence_action_buttons.dart';
 import 'widgets/presence_camera_card.dart';
 import 'widgets/presence_map_card.dart';
 import 'widgets/presence_shift_card.dart';
+import '../face_registration_screen.dart';
 
 class PresenceScreen extends StatefulWidget {
   final Map<String, dynamic>? initialDashboardData;
@@ -255,6 +256,50 @@ class _PresenceScreenState extends State<PresenceScreen> {
       }
     }
 
+    if (type != 'istirahat' && _dashboardData != null && _dashboardData!['has_face_registered'] == false) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Wajah Belum Terdaftar',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          content: const Text(
+            'Anda tidak dapat melakukan presensi karena belum mendaftarkan wajah. Silakan daftarkan foto wajah Anda terlebih dahulu.',
+            style: TextStyle(fontSize: 13, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal', style: TextStyle(color: Constants.textMedium)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final res = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FaceRegistrationScreen()),
+                );
+                if (res == true || res != null) {
+                  _refreshDashboard();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Constants.primaryColor,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Daftarkan Wajah'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     if (type != 'istirahat' && _selfieBytes == null && _selfieFile == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -388,6 +433,76 @@ class _PresenceScreenState extends State<PresenceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_dashboardData != null && _dashboardData!['has_face_registered'] == false) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Constants.cardColor,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Constants.errorColor.withValues(alpha: 0.3)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Constants.errorColor.withValues(alpha: 0.08),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Constants.errorColor, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Wajah Belum Terdaftar',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Constants.errorColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Anda tidak dapat melakukan presensi karena belum mendaftarkan wajah. Daftarkan foto wajah Anda sekarang.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Constants.textDark,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final res = await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const FaceRegistrationScreen()),
+                          );
+                          if (res == true || res != null) {
+                            _refreshDashboard();
+                          }
+                        },
+                        icon: const Icon(Icons.face_retouching_natural_rounded, size: 16),
+                        label: const Text('Daftarkan Wajah Sekarang'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Constants.primaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             PresenceShiftCard(shiftInfo: currentJk),
             const SizedBox(height: 20),
             PresenceMapCard(
