@@ -7,7 +7,7 @@ import '../../services/auth_service.dart';
 import '../../utils/constant.dart';
 import '../../widgets/shimmer_loading.dart';
 import '../login_screen.dart';
-import 'helpers/notification_helpers.dart';
+import '../order_detail_screen.dart';
 import 'widgets/notification_header.dart';
 import 'widgets/notification_search_bar.dart';
 import 'widgets/notification_filter_chips.dart';
@@ -176,6 +176,14 @@ class NotificationScreenState extends State<NotificationScreen> {
           _showSnackBar(result['message'] ?? 'Marketing Response berhasil dicatat', isError: false);
           await _loadNotifications();
           await _loadUnreadCount();
+          if (mounted && notification.orderId != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => OrderDetailScreen(orderId: notification.orderId!),
+              ),
+            );
+          }
         } else {
           _showSnackBar(result['message'] ?? 'Gagal merekam Marketing response', isError: true);
         }
@@ -195,6 +203,19 @@ class NotificationScreenState extends State<NotificationScreen> {
       await _loadNotifications(showLoading: false);
       await _loadUnreadCount();
     }
+  }
+
+  Future<void> _openOrderDetail(NotificationModel notification) async {
+    if (!notification.isRead) {
+      await _markAsRead(notification);
+    }
+    if (!mounted || notification.orderId == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OrderDetailScreen(orderId: notification.orderId!),
+      ),
+    );
   }
 
   Future<void> _markAllAsRead() async {
@@ -351,15 +372,30 @@ class NotificationScreenState extends State<NotificationScreen> {
             (n) => n.orderId == notif.orderId && n.requiresActionResponse && !n.isResponded,
           );
 
+          final isNonActionUser = (_currentUser?.isKepalaMarketing == true) || !notif.canUpdateData;
+
           return NotificationCard(
             notification: notif,
             isHighlighted: _highlightedIndex == index,
             currentUser: _currentUser,
             hasUnrespondedTask: hasUnresponded,
-            onCardTap: () => _markAsRead(notif),
+            onCardTap: () {
+              if (notif.orderId != null && (isNonActionUser || !notif.requiresActionResponse || notif.isResponded)) {
+                _openOrderDetail(notif);
+              } else {
+                _markAsRead(notif);
+              }
+            },
             onAction: () => _handleNotificationResponse(notif),
             onPmAction: () => _handlePmResponse(notif),
-            onViewTask: () => _scrollToNotification(notif),
+            onViewTask: () {
+              if (notif.orderId != null) {
+                _openOrderDetail(notif);
+              } else {
+                _scrollToNotification(notif);
+              }
+            },
+            onViewOrderDetail: notif.orderId != null ? () => _openOrderDetail(notif) : null,
           );
         },
       ),

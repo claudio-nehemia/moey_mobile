@@ -12,6 +12,7 @@ class OrderTeamSection extends StatelessWidget {
       'Kepala Marketing': [],
       'Surveyor / Drafter': [],
       'Desainer': [],
+      'Estimator': [],
     };
 
     if (users != null) {
@@ -28,6 +29,8 @@ class OrderTeamSection extends StatelessWidget {
           roleGroups['Surveyor / Drafter']!.add(userMap);
         } else if (role == 'Desainer') {
           roleGroups['Desainer']!.add(userMap);
+        } else if (role == 'Estimator') {
+          roleGroups['Estimator']!.add(userMap);
         }
       }
     }
@@ -77,6 +80,8 @@ class OrderTeamSection extends StatelessWidget {
                 _buildRoleListRow('Surveyor / Drafter', roleGroups['Surveyor / Drafter']!, Colors.amber.withOpacity(0.08), Colors.amber[800]!),
                 const SizedBox(height: 16),
                 _buildRoleListRow('Desainer', roleGroups['Desainer']!, Colors.purple.withOpacity(0.08), Colors.purple),
+                const SizedBox(height: 16),
+                _buildRoleListRow('Estimator', roleGroups['Estimator']!, Colors.teal.withOpacity(0.08), Colors.teal[700]!),
               ],
             ),
           ),

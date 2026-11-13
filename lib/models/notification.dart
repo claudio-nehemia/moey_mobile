@@ -11,6 +11,8 @@ class NotificationModel {
   final String createdAt;
   final String updatedAt;
   final Order? order;
+  final bool canUpdateData;
+  final bool canMarketingResponse;
 
   NotificationModel({
     required this.id,
@@ -25,6 +27,8 @@ class NotificationModel {
     required this.createdAt,
     required this.updatedAt,
     this.order,
+    this.canUpdateData = true,
+    this.canMarketingResponse = false,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
@@ -43,6 +47,8 @@ class NotificationModel {
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
       order: json['order'] != null ? Order.fromJson(json['order']) : null,
+      canUpdateData: json['can_update_data'] ?? true,
+      canMarketingResponse: json['can_marketing_response'] ?? false,
     );
   }
 
@@ -60,6 +66,8 @@ class NotificationModel {
       'created_at': createdAt,
       'updated_at': updatedAt,
       'order': order?.toJson(),
+      'can_update_data': canUpdateData,
+      'can_marketing_response': canMarketingResponse,
     };
   }
 

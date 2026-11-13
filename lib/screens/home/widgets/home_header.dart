@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../models/user.dart';
 import '../../../utils/constant.dart';
+import 'home_detail_sheets.dart';
 
 class HomeHeader extends StatelessWidget {
   final User? currentUser;
@@ -11,6 +12,8 @@ class HomeHeader extends StatelessWidget {
   final Map<String, dynamic>? dashboardData;
   final Animation<double> avatarPulseAnimation;
   final VoidCallback? onNavigateToNotifications;
+  final VoidCallback? onAttendanceCardTap;
+  final VoidCallback? onOpenPresence;
 
   const HomeHeader({
     super.key,
@@ -22,6 +25,8 @@ class HomeHeader extends StatelessWidget {
     required this.dashboardData,
     required this.avatarPulseAnimation,
     this.onNavigateToNotifications,
+    this.onAttendanceCardTap,
+    this.onOpenPresence,
   });
 
   Widget _buildPulsingAvatar() {
@@ -64,41 +69,54 @@ class HomeHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildLiveStatusBadge() {
+  Widget _buildLiveStatusBadge(BuildContext context) {
     final p = dashboardData?['presensi'];
     final bool isWorking = p != null && p['jam_in'] != null && p['jam_out'] == null;
 
     if (!isWorking) return const SizedBox.shrink();
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.greenAccent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.4), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.greenAccent,
+    return GestureDetector(
+      onTap: () {
+        if (onAttendanceCardTap != null) {
+          onAttendanceCardTap!();
+        } else {
+          HomeDetailSheets.showTodayPresence(
+            context,
+            dashboardData: dashboardData,
+            onOpenPresence: onOpenPresence ?? () {},
+          );
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.greenAccent.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.4), width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.greenAccent,
+              ),
             ),
-          ),
-          const SizedBox(width: 6),
-          const Text(
-            'Sedang Bekerja',
-            style: TextStyle(
-              color: Colors.greenAccent,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.2,
+            const SizedBox(width: 6),
+            const Text(
+              'Sedang Bekerja',
+              style: TextStyle(
+                color: Colors.greenAccent,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.2,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -234,7 +252,7 @@ class HomeHeader extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _buildLiveStatusBadge(),
+                  _buildLiveStatusBadge(context),
                 ],
               ),
             ),
@@ -242,135 +260,173 @@ class HomeHeader extends StatelessWidget {
             // Row 3: Quick Attendance status overlay (Jam Masuk vs Jam Pulang)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    if (onAttendanceCardTap != null) {
+                      onAttendanceCardTap!();
+                    } else {
+                      HomeDetailSheets.showTodayPresence(
+                        context,
+                        dashboardData: dashboardData,
+                        onOpenPresence: onOpenPresence ?? () {},
+                      );
+                    }
+                  },
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        // Jam Masuk
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: Colors.teal.shade50,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: ClipOval(
-                                  child: fotoIn != null && fotoIn.isNotEmpty
-                                      ? Image.network(fotoIn, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.camera_alt_outlined, size: 18, color: Colors.teal.shade800))
-                                      : Icon(Icons.camera_alt_outlined, size: 18, color: Colors.teal.shade800),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Jam Masuk',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      jamIn,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: hasCheckedIn ? Colors.teal.shade800 : Colors.black45,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        Container(
-                          width: 1,
-                          height: 30,
-                          color: Colors.grey.shade200,
-                          margin: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-
-                        // Jam Pulang
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade50,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: ClipOval(
-                                  child: fotoOut != null && fotoOut.isNotEmpty
-                                      ? Image.network(fotoOut, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.camera_alt_outlined, size: 18, color: Colors.redAccent))
-                                      : Icon(Icons.camera_alt_outlined, size: 18, color: Colors.redAccent),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Jam Pulang',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      jamOut,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: hasCheckedOut ? Colors.redAccent : Colors.black45,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
-                    if (dashboardData?['jam_kerja'] != null) ...[
-                      const Divider(height: 20, color: Constants.borderColor),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.schedule_rounded, size: 14, color: Constants.primaryColor),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Jadwal Shift: ${dashboardData!['jam_kerja']['nama_jam_kerja']} (${dashboardData!['jam_kerja']['jam_masuk'] ?? '--:--'} - ${dashboardData!['jam_kerja']['jam_pulang'] ?? '--:--'})',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Constants.textMedium,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            // Jam Masuk
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: Colors.teal.shade50,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: ClipOval(
+                                      child: fotoIn != null && fotoIn.isNotEmpty
+                                          ? Image.network(fotoIn, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.camera_alt_outlined, size: 18, color: Colors.teal.shade800))
+                                          : Icon(Icons.camera_alt_outlined, size: 18, color: Colors.teal.shade800),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Jam Masuk',
+                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          jamIn,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: hasCheckedIn ? Colors.teal.shade800 : Colors.black45,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+
+                            Container(
+                              width: 1,
+                              height: 30,
+                              color: Colors.grey.shade200,
+                              margin: const EdgeInsets.symmetric(horizontal: 8),
+                            ),
+
+                            // Jam Pulang
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade50,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: ClipOval(
+                                      child: fotoOut != null && fotoOut.isNotEmpty
+                                          ? Image.network(fotoOut, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.camera_alt_outlined, size: 18, color: Colors.redAccent))
+                                          : Icon(Icons.camera_alt_outlined, size: 18, color: Colors.redAccent),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Jam Pulang',
+                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          jamOut,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: hasCheckedOut ? Colors.redAccent : Colors.black45,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (dashboardData?['jam_kerja'] != null) ...[
+                          const Divider(height: 20, color: Constants.borderColor),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.schedule_rounded, size: 14, color: Constants.primaryColor),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Jadwal Shift: ${dashboardData!['jam_kerja']['nama_jam_kerja']} (${dashboardData!['jam_kerja']['jam_masuk'] ?? '--:--'} - ${dashboardData!['jam_kerja']['jam_pulang'] ?? '--:--'})',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Constants.textMedium,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded, size: 16, color: Constants.textMedium),
+                            ],
+                          ),
+                        ] else ...[
+                          const Divider(height: 16, color: Constants.borderColor),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Ketuk untuk detail presensi hari ini',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.teal.shade700,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.chevron_right_rounded, size: 14, color: Colors.teal.shade700),
+                            ],
                           ),
                         ],
-                      ),
-                    ],
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

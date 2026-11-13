@@ -13,6 +13,7 @@ class NotificationCard extends StatelessWidget {
   final VoidCallback onAction;
   final VoidCallback onPmAction;
   final VoidCallback onViewTask;
+  final VoidCallback? onViewOrderDetail;
 
   const NotificationCard({
     super.key,
@@ -24,6 +25,7 @@ class NotificationCard extends StatelessWidget {
     required this.onAction,
     required this.onPmAction,
     required this.onViewTask,
+    this.onViewOrderDetail,
   });
 
   @override
@@ -177,49 +179,137 @@ class NotificationCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   if (currentUser != null && currentUser!.isKepalaMarketing) ...[
                     if (notification.pmResponseInfo == null)
-                      SizedBox(
-                        width: double.infinity,
-                        height: 38,
-                        child: ElevatedButton(
-                          onPressed: onPmAction,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Constants.marketingColor,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 38,
+                              child: ElevatedButton(
+                                onPressed: onPmAction,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Constants.marketingColor,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: const Text(
+                                  'Marketing Response',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ),
                           ),
-                          child: const Text(
-                            'Marketing Response',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                          ),
-                        ),
+                          if (onViewOrderDetail != null) ...[
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              height: 38,
+                              child: OutlinedButton.icon(
+                                onPressed: onViewOrderDetail,
+                                icon: const Icon(Icons.visibility_outlined, size: 15),
+                                label: const Text(
+                                  'Detail Order',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Constants.primaryColor,
+                                  side: const BorderSide(color: Constants.borderColor),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       )
-                    else
+                    else ...[
                       _buildResponseBanner(
                         '✓ Marketing Response',
                         notification.pmResponseInfo!['by'],
                         notification.pmResponseInfo!['time'],
                         Constants.marketingColor,
                       ),
-                  ] else ...[
-                    SizedBox(
-                      width: double.infinity,
-                      height: 38,
-                      child: ElevatedButton(
-                        onPressed: onAction,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: color,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      if (onViewOrderDetail != null) ...[
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 38,
+                          child: OutlinedButton.icon(
+                            onPressed: onViewOrderDetail,
+                            icon: const Icon(Icons.visibility_outlined, size: 15),
+                            label: const Text(
+                              'Lihat Detail Order',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Constants.primaryColor,
+                              side: const BorderSide(color: Constants.borderColor),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
                         ),
-                        child: Text(
-                          notification.actionText,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      ],
+                    ],
+                  ] else if (!notification.canUpdateData) ...[
+                    if (onViewOrderDetail != null)
+                      SizedBox(
+                        width: double.infinity,
+                        height: 38,
+                        child: OutlinedButton.icon(
+                          onPressed: onViewOrderDetail,
+                          icon: const Icon(Icons.visibility_outlined, size: 15),
+                          label: const Text(
+                            'Lihat Detail Order',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Constants.primaryColor,
+                            side: const BorderSide(color: Constants.borderColor),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
                         ),
                       ),
+                  ] else ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 38,
+                            child: ElevatedButton(
+                              onPressed: onAction,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: color,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: Text(
+                                notification.actionText,
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (onViewOrderDetail != null) ...[
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            height: 38,
+                            child: OutlinedButton.icon(
+                              onPressed: onViewOrderDetail,
+                              icon: const Icon(Icons.visibility_outlined, size: 15),
+                              label: const Text(
+                                'Detail',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Constants.primaryColor,
+                                side: const BorderSide(color: Constants.borderColor),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                   if (!(currentUser?.isKepalaMarketing ?? false) && notification.pmResponseInfo != null) ...[
@@ -233,30 +323,71 @@ class NotificationCard extends StatelessWidget {
                   ],
                 ],
 
-                // Responded notification - show PM button if PM hasn't responded
-                if (requiresAction &&
-                    isResponded &&
-                    currentUser != null &&
-                    currentUser!.isKepalaMarketing &&
-                    notification.pmResponseInfo == null) ...[
+                // Responded notification - show PM button if PM hasn't responded, plus Detail Order button
+                if (requiresAction && isResponded) ...[
                   const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 38,
-                    child: ElevatedButton(
-                      onPressed: onPmAction,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Constants.marketingColor,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: const Text(
-                        'Marketing Response',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  if (currentUser != null &&
+                      currentUser!.isKepalaMarketing &&
+                      notification.pmResponseInfo == null)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 38,
+                            child: ElevatedButton(
+                              onPressed: onPmAction,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Constants.marketingColor,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text(
+                                'Marketing Response',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (onViewOrderDetail != null) ...[
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            height: 38,
+                            child: OutlinedButton.icon(
+                              onPressed: onViewOrderDetail,
+                              icon: const Icon(Icons.visibility_outlined, size: 15),
+                              label: const Text(
+                                'Detail Order',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Constants.primaryColor,
+                                side: const BorderSide(color: Constants.borderColor),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    )
+                  else if (onViewOrderDetail != null)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 38,
+                      child: OutlinedButton.icon(
+                        onPressed: onViewOrderDetail,
+                        icon: const Icon(Icons.visibility_outlined, size: 15),
+                        label: const Text(
+                          'Lihat Detail Order',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Constants.primaryColor,
+                          side: const BorderSide(color: Constants.borderColor),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
                       ),
                     ),
-                  ),
                 ],
 
                 // View-only button
@@ -266,14 +397,18 @@ class NotificationCard extends StatelessWidget {
                     width: double.infinity,
                     height: 38,
                     child: OutlinedButton.icon(
-                      onPressed: onViewTask,
+                      onPressed: onViewOrderDetail ?? onViewTask,
                       icon: Icon(
-                        hasUnrespondedTask ? Icons.arrow_forward : Icons.find_in_page_outlined,
+                        onViewOrderDetail != null
+                            ? Icons.visibility_outlined
+                            : (hasUnrespondedTask ? Icons.arrow_forward : Icons.find_in_page_outlined),
                         size: 14,
                         color: Constants.primaryColor,
                       ),
                       label: Text(
-                        hasUnrespondedTask ? 'Menuju Tugas' : 'Check Response',
+                        onViewOrderDetail != null
+                            ? 'Lihat Detail Order'
+                            : (hasUnrespondedTask ? 'Menuju Tugas' : 'Check Response'),
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                       style: OutlinedButton.styleFrom(

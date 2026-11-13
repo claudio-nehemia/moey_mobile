@@ -16,11 +16,13 @@ import '../login_screen.dart';
 import '../presence_screen.dart';
 import '../slip_gaji_screen.dart';
 import '../face_registration_screen.dart';
+import '../order_detail_screen.dart';
 import 'widgets/birthday_dialog.dart';
 import 'widgets/home_alerts.dart';
 import 'widgets/home_announcements.dart';
 import 'widgets/home_attendance_menu.dart';
 import 'widgets/home_cs_orders.dart';
+import 'widgets/home_detail_sheets.dart';
 import 'widgets/home_header.dart';
 import 'widgets/home_presence_history.dart';
 import 'widgets/home_quick_actions.dart';
@@ -327,6 +329,13 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                       dashboardData: _dashboardData,
                       avatarPulseAnimation: _avatarPulseAnimation,
                       onNavigateToNotifications: widget.onNavigateToNotifications,
+                      onOpenPresence: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => PresenceScreen(initialDashboardData: _dashboardData)),
+                        );
+                        _loadData(silent: true);
+                      },
                     ),
                     Padding(
                       padding: const EdgeInsets.all(20),
@@ -373,6 +382,10 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                             unreadCount: _unreadCount,
                             pendingCount: _pendingCount,
                             onNavigateToNotifications: widget.onNavigateToNotifications,
+                            onPendingTap: () {
+                              final pending = _notifications.where((n) => n.requiresActionResponse && !n.isResponded).toList();
+                              HomeDetailSheets.showPendingTasks(context, pending, widget.onNavigateToNotifications);
+                            },
                             onCreateOrder: () {
                               Navigator.push(
                                 context,
@@ -388,6 +401,13 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                           HomeAlerts(
                             currentUser: _currentUser,
                             dashboardData: _dashboardData,
+                            onOpenOrder: (orderId) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => OrderDetailScreen(orderId: orderId)),
+                              );
+                            },
+                            onNavigateToNotifications: widget.onNavigateToNotifications,
                             onRegisterFace: () async {
                               final result = await Navigator.push(
                                 context,
@@ -407,6 +427,15 @@ class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMi
                             todayCount: _todayCount,
                             completedThisMonth: _completedThisMonth,
                             dashboardData: _dashboardData,
+                            notifications: _notifications,
+                            onNavigateToNotifications: widget.onNavigateToNotifications,
+                            onSwitchTab: (tabIndex) {
+                              setState(() => _activeTab = tabIndex);
+                            },
+                            onOpenIzinCuti: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const IzinCutiScreen()),
+                            ),
                           ),
                           _buildTabBar(),
                           if (_activeTab == 0) ...[

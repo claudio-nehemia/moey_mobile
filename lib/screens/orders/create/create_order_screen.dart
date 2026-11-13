@@ -37,12 +37,14 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   List<int> _selectedMarketingIds = [];
   List<int> _selectedDrafterIds = [];
   List<int> _selectedDesainerIds = [];
+  List<int> _selectedEstimatorIds = [];
   final List<File> _selectedFiles = [];
 
   // Options from API
   List<dynamic> _marketings = [];
   List<dynamic> _drafters = [];
   List<dynamic> _desainers = [];
+  List<dynamic> _estimators = [];
   List<dynamic> _jenisInteriors = [];
 
   bool _isLoadingData = true;
@@ -78,6 +80,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         _marketings = data['marketings'] ?? [];
         _drafters = data['drafters'] ?? [];
         _desainers = data['desainers'] ?? [];
+        _estimators = data['estimators'] ?? [];
         _jenisInteriors = data['jenis_interiors'] ?? [];
         _isLoadingData = false;
         _errorMessage = null;
@@ -176,6 +179,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       userIds.addAll(_selectedMarketingIds);
       userIds.addAll(_selectedDrafterIds);
       userIds.addAll(_selectedDesainerIds);
+      userIds.addAll(_selectedEstimatorIds);
 
       await _orderService.createOrder(
         fields,
@@ -384,13 +388,16 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
           marketings: _marketings,
           drafters: _drafters,
           desainers: _desainers,
+          estimators: _estimators,
           selectedMarketingIds: _selectedMarketingIds,
           selectedDrafterIds: _selectedDrafterIds,
           selectedDesainerIds: _selectedDesainerIds,
+          selectedEstimatorIds: _selectedEstimatorIds,
           selectedFiles: _selectedFiles,
           onMarketingChanged: (val) => setState(() => _selectedMarketingIds = val),
           onDrafterChanged: (val) => setState(() => _selectedDrafterIds = val),
           onDesainerChanged: (val) => setState(() => _selectedDesainerIds = val),
+          onEstimatorChanged: (val) => setState(() => _selectedEstimatorIds = val),
           onPickMomFiles: _pickMomFiles,
           onRemoveFile: (index) => setState(() => _selectedFiles.removeAt(index)),
         );

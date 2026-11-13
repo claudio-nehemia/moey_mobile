@@ -6,6 +6,7 @@ class HomeQuickActions extends StatelessWidget {
   final int unreadCount;
   final int pendingCount;
   final VoidCallback? onNavigateToNotifications;
+  final VoidCallback? onPendingTap;
   final VoidCallback? onCreateOrder;
 
   const HomeQuickActions({
@@ -14,6 +15,7 @@ class HomeQuickActions extends StatelessWidget {
     required this.unreadCount,
     required this.pendingCount,
     this.onNavigateToNotifications,
+    this.onPendingTap,
     this.onCreateOrder,
   });
 
@@ -60,28 +62,31 @@ class HomeQuickActions extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Constants.cardColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Constants.borderColor),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.access_time_outlined, size: 22, color: Constants.estimasiColor),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Tugas Pending',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Constants.textDark),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$pendingCount tasks',
-                      style: const TextStyle(fontSize: 11, color: Constants.textMedium),
-                    ),
-                  ],
+              child: GestureDetector(
+                onTap: onPendingTap ?? onNavigateToNotifications,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Constants.cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Constants.borderColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.access_time_outlined, size: 22, color: Constants.estimasiColor),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Tugas Pending',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Constants.textDark),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$pendingCount tasks',
+                        style: const TextStyle(fontSize: 11, color: Constants.textMedium),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

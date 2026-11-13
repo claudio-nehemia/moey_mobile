@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../models/notification.dart';
 import '../../../utils/constant.dart';
+import '../../order_detail_screen.dart';
 
 class HomeRecentTasks extends StatelessWidget {
   final List<NotificationModel> recentPending;
@@ -127,7 +128,20 @@ class HomeRecentTasks extends StatelessWidget {
             final icon = _getTypeIcon(n.type);
             final isUnread = !n.isRead;
 
-            return Container(
+            return GestureDetector(
+              onTap: () {
+                if (n.orderId != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => OrderDetailScreen(orderId: n.orderId!),
+                    ),
+                  );
+                } else if (onNavigateToNotifications != null) {
+                  onNavigateToNotifications!();
+                }
+              },
+              child: Container(
               margin: EdgeInsets.only(bottom: i < recentPending.length - 1 ? 10 : 0),
               decoration: BoxDecoration(
                 color: Constants.cardColor,
@@ -198,6 +212,7 @@ class HomeRecentTasks extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
             );
           }),
       ],

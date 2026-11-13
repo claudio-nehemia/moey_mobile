@@ -7,13 +7,16 @@ class StepTeamMom extends StatelessWidget {
   final List<dynamic> marketings;
   final List<dynamic> drafters;
   final List<dynamic> desainers;
+  final List<dynamic> estimators;
   final List<int> selectedMarketingIds;
   final List<int> selectedDrafterIds;
   final List<int> selectedDesainerIds;
+  final List<int> selectedEstimatorIds;
   final List<File> selectedFiles;
   final ValueChanged<List<int>> onMarketingChanged;
   final ValueChanged<List<int>> onDrafterChanged;
   final ValueChanged<List<int>> onDesainerChanged;
+  final ValueChanged<List<int>> onEstimatorChanged;
   final VoidCallback onPickMomFiles;
   final ValueChanged<int> onRemoveFile;
 
@@ -22,13 +25,16 @@ class StepTeamMom extends StatelessWidget {
     required this.marketings,
     required this.drafters,
     required this.desainers,
+    required this.estimators,
     required this.selectedMarketingIds,
     required this.selectedDrafterIds,
     required this.selectedDesainerIds,
+    required this.selectedEstimatorIds,
     required this.selectedFiles,
     required this.onMarketingChanged,
     required this.onDrafterChanged,
     required this.onDesainerChanged,
+    required this.onEstimatorChanged,
     required this.onPickMomFiles,
     required this.onRemoveFile,
   });
@@ -63,6 +69,14 @@ class StepTeamMom extends StatelessWidget {
               selectedIds: selectedDesainerIds,
               placeholder: 'Pilih desainer',
               onSelectedChanged: onDesainerChanged,
+            ),
+            const SizedBox(height: 16),
+            FormMultiSelectField(
+              label: 'Estimator',
+              items: estimators,
+              selectedIds: selectedEstimatorIds,
+              placeholder: 'Pilih estimator',
+              onSelectedChanged: onEstimatorChanged,
             ),
           ],
         ),
